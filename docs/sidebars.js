@@ -7,6 +7,7 @@ const sidebars = {
     'event-flow',
     'integration-contract',
     'simulation-result',
+    'full-application',
     'testing',
   ],
 };

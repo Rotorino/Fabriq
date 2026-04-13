@@ -54,6 +54,7 @@ machines: list[Machine]
 queue_limit: int | None
 reject_probability: float
 next_stage_id: str | None
+buffer_capacity: int | None
 ```
 
 Если у этапа есть поле `queue`, ядро использует его как рабочую очередь. Если поля нет, очередь хранится во внутреннем `raw_data`.
@@ -61,6 +62,14 @@ next_stage_id: str | None
 ```python
 queue: list[str]
 ```
+
+Если у этапа есть поле `buffer`, ядро использует его как рабочий буфер для партий, которые не помещаются в очередь. Если поля нет, буфер хранится во внутреннем `raw_data`.
+
+```python
+buffer: list[str]
+```
+
+`buffer_capacity` задает максимальное число партий в буфере. Значение `None` означает неограниченный буфер, `0` означает отсутствие буфера.
 
 ## `ProductionLine`
 
@@ -83,6 +92,7 @@ class ProductionLine:
 idle
 busy
 broken
+buffered
 waiting
 processing
 completed

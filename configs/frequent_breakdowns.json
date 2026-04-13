@@ -1,0 +1,63 @@
+{
+  "scenario_name": "frequent_breakdowns",
+  "description": "Scenario with frequent equipment failures and longer repair time.",
+  "simulation_duration": 90,
+  "seed": 17,
+  "stages": [
+    {
+      "stage_id": "cutting",
+      "name": "Cutting",
+      "queue_limit": 3,
+      "buffer_capacity": 2,
+      "reject_probability": 0.02,
+      "next_stage_id": "assembly",
+      "machines": [
+        {
+          "machine_id": "cut-1",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.35,
+          "repair_time": 3.0
+        }
+      ]
+    },
+    {
+      "stage_id": "assembly",
+      "name": "Assembly",
+      "queue_limit": 3,
+      "buffer_capacity": 2,
+      "reject_probability": 0.03,
+      "next_stage_id": "quality",
+      "machines": [
+        {
+          "machine_id": "asm-1",
+          "processing_time": 3.0,
+          "breakdown_probability": 0.35,
+          "repair_time": 4.0
+        }
+      ]
+    },
+    {
+      "stage_id": "quality",
+      "name": "Quality control",
+      "queue_limit": 4,
+      "buffer_capacity": 2,
+      "reject_probability": 0.01,
+      "next_stage_id": null,
+      "machines": [
+        {
+          "machine_id": "qc-1",
+          "processing_time": 1.5,
+          "breakdown_probability": 0.25,
+          "repair_time": 2.0
+        }
+      ]
+    }
+  ],
+  "batches": {
+    "mode": "equal_intervals",
+    "count": 12,
+    "size": 10,
+    "arrival_interval": 3.0,
+    "route": ["cutting", "assembly", "quality"]
+  }
+}

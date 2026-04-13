@@ -1,0 +1,63 @@
+{
+  "scenario_name": "high_load",
+  "description": "Higher arrival rate to expose queue pressure and bottlenecks.",
+  "simulation_duration": 80,
+  "seed": 11,
+  "stages": [
+    {
+      "stage_id": "cutting",
+      "name": "Cutting",
+      "queue_limit": 2,
+      "buffer_capacity": 3,
+      "reject_probability": 0.02,
+      "next_stage_id": "assembly",
+      "machines": [
+        {
+          "machine_id": "cut-1",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.05,
+          "repair_time": 2.0
+        }
+      ]
+    },
+    {
+      "stage_id": "assembly",
+      "name": "Assembly",
+      "queue_limit": 2,
+      "buffer_capacity": 3,
+      "reject_probability": 0.03,
+      "next_stage_id": "quality",
+      "machines": [
+        {
+          "machine_id": "asm-1",
+          "processing_time": 3.5,
+          "breakdown_probability": 0.04,
+          "repair_time": 2.5
+        }
+      ]
+    },
+    {
+      "stage_id": "quality",
+      "name": "Quality control",
+      "queue_limit": 3,
+      "buffer_capacity": 2,
+      "reject_probability": 0.01,
+      "next_stage_id": null,
+      "machines": [
+        {
+          "machine_id": "qc-1",
+          "processing_time": 1.5,
+          "breakdown_probability": 0.02,
+          "repair_time": 1.0
+        }
+      ]
+    }
+  ],
+  "batches": {
+    "mode": "equal_intervals",
+    "count": 24,
+    "size": 10,
+    "arrival_interval": 1.2,
+    "route": ["cutting", "assembly", "quality"]
+  }
+}

@@ -27,6 +27,6 @@ class EventDispatcher:
         try:
             handler = self.handlers[event.event_type]
         except KeyError as exc:
-            raise KeyError(f"No handler registered for {event.event_type.value}") from exc
+            message = f"No handler registered for {event.event_type.value}"
+            raise KeyError(message) from exc
         handler.handle(event, context)
-
