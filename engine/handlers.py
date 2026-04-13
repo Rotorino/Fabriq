@@ -75,7 +75,10 @@ class QueueEnterHandler:
         queue = ensure_stage_queue(context, stage)
         queue_limit = getattr(stage, "queue_limit", None)
 
-        if queue_limit is not None and len(queue) >= queue_limit:
+        if (
+            queue_limit is not None
+            and count_waiting_batches(context, stage, queue) >= queue_limit
+        ):
             context.add_event_log(event, "queue_full", {"queue_length": len(queue)})
             logger.warning("Queue is full for stage %s", event.stage_id)
             return
@@ -502,6 +505,19 @@ def find_unreserved_batch_id(
         if not get_batch_start_scheduled(context, stage.stage_id, batch_id):
             return batch_id
     return None
+
+
+def count_waiting_batches(
+    context: SimulationContext,
+    stage: Any,
+    queue: list[str],
+) -> int:
+    """Return queued batches not already reserved for processing start."""
+    return sum(
+        1
+        for batch_id in queue
+        if not get_batch_start_scheduled(context, stage.stage_id, batch_id)
+    )
 
 
 def resolve_current_stage_id(batch: Any, production_line: Any) -> str:

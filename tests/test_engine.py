@@ -139,6 +139,28 @@ class EngineTestCase(unittest.TestCase):
         )
         self.assertEqual(stage.queue, [])
 
+    def test_queue_limit_ignores_batch_reserved_for_processing_start(self) -> None:
+        stage = FakeStage(
+            stage_id="s1",
+            machines=[FakeMachine(machine_id="m1", stage_id="s1", processing_time=5.0)],
+            queue_limit=1,
+        )
+        line = FakeLine(stages={"s1": stage})
+        batches = [
+            FakeBatch(batch_id="b1", arrival_time=0.0, route=["s1"]),
+            FakeBatch(batch_id="b2", arrival_time=0.0, route=["s1"]),
+        ]
+
+        result = SimulationEngine(
+            production_line=line,
+            batches=batches,
+            simulation_duration=20.0,
+            rng=random.Random(1),
+        ).run()
+
+        self.assertEqual([batch.status for batch in batches], ["completed", "completed"])
+        self.assertNotIn("queue_full", [record.result for record in result.events])
+
     def test_parallel_machines_start_different_batches(self) -> None:
         stage = FakeStage(
             stage_id="s1",

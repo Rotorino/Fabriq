@@ -5,6 +5,10 @@ __pycache__/
 .mypy_cache/
 .venv/
 venv/
+
 logs/*.log
 results/*
 
+docs/.docusaurus/
+docs/build/
+docs/node_modules/
