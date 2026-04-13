@@ -45,6 +45,8 @@ class SimulationEngine:
         """Execute the simulation and return raw simulation results."""
         setup_engine_logging()
         logger.info("Simulation started: %s", self.scenario_name)
+        if self.simulation_duration < 0:
+            raise ValueError("simulation_duration must be non-negative")
         batch_map = {str(batch.batch_id): batch for batch in self.batches}
         event_queue = EventQueue()
         context = SimulationContext(
@@ -58,6 +60,7 @@ class SimulationEngine:
 
         self._schedule_initial_events(context)
         self._run_loop(context, dispatcher)
+        self._stop_at_duration(context, dispatcher)
         result = self._build_result(context)
         logger.info("Simulation finished: %s", self.scenario_name)
         return result
@@ -71,12 +74,6 @@ class SimulationEngine:
                     batch_id=str(batch.batch_id),
                 )
             )
-        context.event_queue.push(
-            Event(
-                timestamp=float(self.simulation_duration),
-                event_type=EventType.SIMULATION_END,
-            )
-        )
 
     def _run_loop(self, context: SimulationContext, dispatcher: EventDispatcher) -> None:
         while not context.event_queue.is_empty() and not context.stopped:
@@ -85,6 +82,22 @@ class SimulationEngine:
                 break
             context.current_time = event.timestamp
             dispatcher.dispatch(event, context)
+
+    def _stop_at_duration(
+        self,
+        context: SimulationContext,
+        dispatcher: EventDispatcher,
+    ) -> None:
+        if context.stopped:
+            return
+        context.current_time = float(self.simulation_duration)
+        dispatcher.dispatch(
+            Event(
+                timestamp=float(self.simulation_duration),
+                event_type=EventType.SIMULATION_END,
+            ),
+            context,
+        )
 
     def _build_result(self, context: SimulationContext) -> SimulationResult:
         stages = list_stages(self.production_line)

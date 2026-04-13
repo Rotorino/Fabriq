@@ -106,12 +106,22 @@ class ProcessingStartHandler:
             return
         if not queue:
             set_start_scheduled(context, machine, False)
+            if event.batch_id is not None:
+                set_batch_start_scheduled(context, stage.stage_id, event.batch_id, False)
             context.add_event_log(event, "queue_empty", {"machine_id": machine.machine_id})
             return
 
-        batch_id = queue.pop(0)
+        batch_id = take_queued_batch(context, stage, event.batch_id)
+        if batch_id is None:
+            set_start_scheduled(context, machine, False)
+            context.add_event_log(
+                event,
+                "reserved_batch_missing",
+                {"machine_id": machine.machine_id},
+            )
+            return
         batch = get_batch(context, batch_id)
-        processing_time = float(getattr(machine, "processing_time"))
+        processing_time = get_processing_time(context, stage, machine, batch.batch_id)
         finish_time = event.timestamp + processing_time
         set_status(batch, PROCESSING_STATUS)
         set_status(machine, BUSY_STATUS)
@@ -136,7 +146,10 @@ class ProcessingStartHandler:
                     batch_id=batch.batch_id,
                     stage_id=stage.stage_id,
                     machine_id=machine.machine_id,
-                    payload={"planned_finish": finish_time},
+                    payload={
+                        "planned_finish": finish_time,
+                        "processing_time": processing_time,
+                    },
                 )
             )
         else:
@@ -280,10 +293,20 @@ class MachineBreakdownHandler:
             return
 
         batch_id = get_current_batch_id(context, machine) or event.batch_id
+        planned_finish = float(event.payload.get("planned_finish", event.timestamp))
+        remaining_time = max(planned_finish - event.timestamp, 0.0)
         set_status(machine, BROKEN_STATUS)
         repair_time = float(getattr(machine, "repair_time", 0.0))
         setattr(machine, "busy_until", event.timestamp + repair_time)
         set_interrupted_batch_id(context, machine, batch_id)
+        if batch_id is not None:
+            set_remaining_processing_time(
+                context,
+                stage.stage_id,
+                batch_id,
+                remaining_time,
+            )
+            set_status(get_batch(context, batch_id), WAITING_STATUS)
         set_current_batch_id(context, machine, None)
         repair_finish = event.timestamp + repair_time
         record_machine_activity(
@@ -302,7 +325,11 @@ class MachineBreakdownHandler:
                 machine_id=machine.machine_id,
             )
         )
-        context.add_event_log(event, "machine_broken", {"repair_finish": repair_finish})
+        context.add_event_log(
+            event,
+            "machine_broken",
+            {"repair_finish": repair_finish, "remaining_time": remaining_time},
+        )
 
 
 @dataclass(slots=True)
@@ -368,12 +395,15 @@ class ProcessingStarter:
         """Schedule one processing start event if the stage can process work."""
         queue = ensure_stage_queue(context, stage)
         machine = find_available_machine(stage, context)
-        if queue and machine is not None:
+        batch_id = find_unreserved_batch_id(context, stage, queue)
+        if batch_id is not None and machine is not None:
             set_start_scheduled(context, machine, True)
+            set_batch_start_scheduled(context, stage.stage_id, batch_id, True)
             context.event_queue.push(
                 Event(
                     timestamp=timestamp,
                     event_type=EventType.PROCESSING_START,
+                    batch_id=batch_id,
                     stage_id=stage.stage_id,
                     machine_id=machine.machine_id,
                 )
@@ -431,8 +461,47 @@ def find_available_machine(stage: Any, context: SimulationContext | None = None)
 
 def ensure_stage_queue(context: SimulationContext, stage: Any) -> list[str]:
     """Return the mutable runtime queue for a stage."""
+    if hasattr(stage, "queue"):
+        queue = getattr(stage, "queue")
+        if queue is None:
+            queue = []
+            setattr(stage, "queue", queue)
+        return queue
     queues = context.raw_data.setdefault("_stage_queues", {})
     return queues.setdefault(stage.stage_id, [])
+
+
+def take_queued_batch(
+    context: SimulationContext,
+    stage: Any,
+    batch_id: str | None,
+) -> str | None:
+    """Remove and return a reserved batch from a stage queue."""
+    queue = ensure_stage_queue(context, stage)
+    if batch_id is not None and batch_id in queue:
+        queue.remove(batch_id)
+        set_batch_start_scheduled(context, stage.stage_id, batch_id, False)
+        return batch_id
+    if batch_id is not None:
+        set_batch_start_scheduled(context, stage.stage_id, batch_id, False)
+        return None
+    if not queue:
+        return None
+    next_batch_id = queue.pop(0)
+    set_batch_start_scheduled(context, stage.stage_id, next_batch_id, False)
+    return next_batch_id
+
+
+def find_unreserved_batch_id(
+    context: SimulationContext,
+    stage: Any,
+    queue: list[str],
+) -> str | None:
+    """Return the first queued batch that has no scheduled start event."""
+    for batch_id in queue:
+        if not get_batch_start_scheduled(context, stage.stage_id, batch_id):
+            return batch_id
+    return None
 
 
 def resolve_current_stage_id(batch: Any, production_line: Any) -> str:
@@ -477,6 +546,8 @@ def set_current_batch_id(
     """Store the batch currently assigned to a machine."""
     state = get_machine_runtime(context, machine)
     state["current_batch_id"] = batch_id
+    if hasattr(machine, "current_batch_id"):
+        setattr(machine, "current_batch_id", batch_id)
 
 
 def get_interrupted_batch_id(context: SimulationContext, machine: Any) -> str | None:
@@ -493,6 +564,8 @@ def set_interrupted_batch_id(
     """Store the batch interrupted by a machine breakdown."""
     state = get_machine_runtime(context, machine)
     state["interrupted_batch_id"] = batch_id
+    if hasattr(machine, "interrupted_batch_id"):
+        setattr(machine, "interrupted_batch_id", batch_id)
 
 
 def get_start_scheduled(context: SimulationContext, machine: Any) -> bool:
@@ -509,6 +582,59 @@ def set_start_scheduled(
     """Store a reservation flag for a scheduled processing start."""
     state = get_machine_runtime(context, machine)
     state["start_scheduled"] = is_scheduled
+    if hasattr(machine, "start_scheduled"):
+        setattr(machine, "start_scheduled", is_scheduled)
+
+
+def get_batch_start_scheduled(
+    context: SimulationContext,
+    stage_id: str,
+    batch_id: str,
+) -> bool:
+    """Return True when a queued batch already has a start event."""
+    scheduled = context.raw_data.setdefault("_scheduled_batch_starts", {})
+    return batch_id in scheduled.setdefault(stage_id, set())
+
+
+def set_batch_start_scheduled(
+    context: SimulationContext,
+    stage_id: str,
+    batch_id: str,
+    is_scheduled: bool,
+) -> None:
+    """Store a reservation flag for a queued batch."""
+    scheduled = context.raw_data.setdefault("_scheduled_batch_starts", {})
+    stage_scheduled = scheduled.setdefault(stage_id, set())
+    if is_scheduled:
+        stage_scheduled.add(batch_id)
+    else:
+        stage_scheduled.discard(batch_id)
+
+
+def get_processing_time(
+    context: SimulationContext,
+    stage: Any,
+    machine: Any,
+    batch_id: str,
+) -> float:
+    """Return processing time, resuming interrupted work when available."""
+    remaining_times = context.raw_data.setdefault("_remaining_processing_times", {})
+    remaining_key = (stage.stage_id, batch_id)
+    remaining_time = remaining_times.pop(remaining_key, None)
+    if remaining_time is not None:
+        return float(remaining_time)
+    return float(getattr(machine, "processing_time"))
+
+
+def set_remaining_processing_time(
+    context: SimulationContext,
+    stage_id: str,
+    batch_id: str,
+    remaining_time: float,
+) -> None:
+    """Store remaining processing time for a batch interrupted by breakdown."""
+    remaining_times = context.raw_data.setdefault("_remaining_processing_times", {})
+    remaining_times[(stage_id, batch_id)] = remaining_time
 
 
 def set_status(entity: Any, value: str) -> None:
