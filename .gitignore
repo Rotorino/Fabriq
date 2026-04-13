@@ -7,4 +7,6 @@ __pycache__/
 venv/
 logs/*.log
 results/*
-
+docs/.docusaurus/
+docs/build/
+docs/node_modules/

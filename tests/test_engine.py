@@ -42,6 +42,7 @@ class FakeStage:
     buffer_capacity: int = 10
     next_stage_id: str | None = None
     queue: list[str] = field(default_factory=list)
+    buffer: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -93,7 +94,9 @@ class EngineTestCase(unittest.TestCase):
     def test_processing_finish_at_simulation_duration_is_processed(self) -> None:
         stage = FakeStage(
             stage_id="s1",
-            machines=[FakeMachine(machine_id="m1", stage_id="s1", processing_time=10.0)],
+            machines=[
+                FakeMachine(machine_id="m1", stage_id="s1", processing_time=10.0),
+            ],
         )
         line = FakeLine(stages={"s1": stage})
         batch = FakeBatch(batch_id="b1", arrival_time=0.0, route=["s1"])
@@ -107,7 +110,10 @@ class EngineTestCase(unittest.TestCase):
 
         self.assertEqual(batch.status, "completed")
         self.assertEqual(result.events[-1].event_type, EventType.SIMULATION_END.value)
-        self.assertIn("processing_finished", [record.result for record in result.events])
+        self.assertIn(
+            "processing_finished",
+            [record.result for record in result.events],
+        )
 
     def test_batch_waits_when_machine_is_busy(self) -> None:
         stage = FakeStage(
@@ -127,7 +133,10 @@ class EngineTestCase(unittest.TestCase):
             rng=random.Random(1),
         ).run()
 
-        self.assertEqual([batch.status for batch in batches], ["completed", "completed"])
+        self.assertEqual(
+            [batch.status for batch in batches],
+            ["completed", "completed"],
+        )
         processing_starts = [
             record for record in result.events if record.result == "processing_started"
         ]
@@ -164,11 +173,17 @@ class EngineTestCase(unittest.TestCase):
             record for record in result.events if record.result == "processing_started"
         ]
         self.assertEqual(len(processing_starts), 2)
-        self.assertEqual({record.batch_id for record in processing_starts}, {"b1", "b2"})
-        self.assertEqual({record.machine_id for record in processing_starts}, {"m1", "m2"})
+        self.assertEqual(
+            {record.batch_id for record in processing_starts},
+            {"b1", "b2"},
+        )
+        self.assertEqual(
+            {record.machine_id for record in processing_starts},
+            {"m1", "m2"},
+        )
         self.assertTrue(all(batch.status == "completed" for batch in batches))
 
-    def test_machine_breakdown_requeues_batch_after_repair(self) -> None:
+    def test_machine_breakdown_requeues_and_completes_batch_after_repair(self) -> None:
         stage = FakeStage(
             stage_id="s1",
             machines=[
@@ -187,16 +202,78 @@ class EngineTestCase(unittest.TestCase):
         result = SimulationEngine(
             production_line=line,
             batches=[batch],
-            simulation_duration=6.0,
+            simulation_duration=8.0,
             rng=random.Random(1),
         ).run()
 
         results = [record.result for record in result.events]
         self.assertIn("machine_broken", results)
         self.assertIn("repair_finished", results)
-        self.assertEqual(batch.status, "waiting")
-        self.assertEqual(stage.machines[0].status, "broken")
-        self.assertEqual(stage.machines[0].interrupted_batch_id, "b1")
+        self.assertEqual(batch.status, "completed")
+        self.assertEqual(stage.machines[0].status, "idle")
+        self.assertIsNone(stage.machines[0].interrupted_batch_id)
+
+    def test_full_queue_sends_batch_to_buffer_then_processes_it(self) -> None:
+        stage = FakeStage(
+            stage_id="s1",
+            machines=[FakeMachine(machine_id="m1", stage_id="s1", processing_time=4.0)],
+            queue_limit=1,
+            buffer_capacity=2,
+        )
+        line = FakeLine(stages={"s1": stage})
+        batches = [
+            FakeBatch(batch_id="b1", arrival_time=0.0, route=["s1"]),
+            FakeBatch(batch_id="b2", arrival_time=0.0, route=["s1"]),
+            FakeBatch(batch_id="b3", arrival_time=0.0, route=["s1"]),
+        ]
+
+        result = SimulationEngine(
+            production_line=line,
+            batches=batches,
+            simulation_duration=20.0,
+            rng=random.Random(1),
+        ).run()
+
+        results = [record.result for record in result.events]
+        self.assertIn("buffered", results)
+        self.assertEqual([batch.status for batch in batches], ["completed"] * 3)
+        self.assertEqual(stage.queue, [])
+        self.assertEqual(stage.buffer, [])
+        self.assertIn(
+            {"timestamp": 0.0, "stage_id": "s1", "buffer_length": 1},
+            result.raw_data["buffer_lengths"],
+        )
+
+    def test_full_queue_and_full_buffer_rejects_batch(self) -> None:
+        stage = FakeStage(
+            stage_id="s1",
+            machines=[FakeMachine(machine_id="m1", stage_id="s1", processing_time=4.0)],
+            queue_limit=1,
+            buffer_capacity=0,
+        )
+        line = FakeLine(stages={"s1": stage})
+        batches = [
+            FakeBatch(batch_id="b1", arrival_time=0.0, route=["s1"]),
+            FakeBatch(batch_id="b2", arrival_time=0.0, route=["s1"]),
+            FakeBatch(batch_id="b3", arrival_time=0.0, route=["s1"]),
+        ]
+
+        result = SimulationEngine(
+            production_line=line,
+            batches=batches,
+            simulation_duration=20.0,
+            rng=random.Random(1),
+        ).run()
+
+        self.assertEqual(
+            [batch.status for batch in batches],
+            ["completed", "completed", "rejected"],
+        )
+        self.assertTrue(batches[2].is_rejected)
+        self.assertIn(
+            "buffer_full_marked_for_rejection",
+            [record.result for record in result.events],
+        )
 
     def test_batch_rejection_stops_route(self) -> None:
         stage = FakeStage(

@@ -75,7 +75,11 @@ class SimulationEngine:
                 )
             )
 
-    def _run_loop(self, context: SimulationContext, dispatcher: EventDispatcher) -> None:
+    def _run_loop(
+        self,
+        context: SimulationContext,
+        dispatcher: EventDispatcher,
+    ) -> None:
         while not context.event_queue.is_empty() and not context.stopped:
             event = context.event_queue.pop()
             if event.timestamp > self.simulation_duration:
@@ -101,7 +105,9 @@ class SimulationEngine:
 
     def _build_result(self, context: SimulationContext) -> SimulationResult:
         stages = list_stages(self.production_line)
-        machines = [machine for stage in stages for machine in getattr(stage, "machines", [])]
+        machines = [
+            machine for stage in stages for machine in getattr(stage, "machines", [])
+        ]
         return SimulationResult(
             events=list(context.event_log),
             batches=list(context.batches.values()),

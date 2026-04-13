@@ -20,6 +20,7 @@ WAITING_STATUS = "waiting"
 PROCESSING_STATUS = "processing"
 COMPLETED_STATUS = "completed"
 REJECTED_STATUS = "rejected"
+BUFFERED_STATUS = "buffered"
 
 
 def build_default_handlers(rng: random.Random | None = None) -> dict[EventType, Any]:
@@ -75,8 +76,45 @@ class QueueEnterHandler:
         queue = ensure_stage_queue(context, stage)
         queue_limit = getattr(stage, "queue_limit", None)
 
-        if queue_limit is not None and len(queue) >= queue_limit:
-            context.add_event_log(event, "queue_full", {"queue_length": len(queue)})
+        if (
+            queue_limit is not None
+            and count_waiting_batches(context, stage, queue) >= queue_limit
+        ):
+            buffer = ensure_stage_buffer(context, stage)
+            buffer_capacity = getattr(stage, "buffer_capacity", 0)
+            if buffer_capacity is None or len(buffer) < int(buffer_capacity):
+                if batch.batch_id not in buffer:
+                    buffer.append(batch.batch_id)
+                set_status(batch, BUFFERED_STATUS)
+                record_buffer_length(
+                    context,
+                    event.timestamp,
+                    stage.stage_id,
+                    len(buffer),
+                )
+                context.add_event_log(
+                    event,
+                    "buffered",
+                    {
+                        "queue_length": len(queue),
+                        "buffer_length": len(buffer),
+                    },
+                )
+                return
+
+            context.event_queue.push(
+                Event(
+                    timestamp=event.timestamp,
+                    event_type=EventType.BATCH_REJECTED,
+                    batch_id=batch.batch_id,
+                    stage_id=stage.stage_id,
+                )
+            )
+            context.add_event_log(
+                event,
+                "buffer_full_marked_for_rejection",
+                {"queue_length": len(queue), "buffer_length": len(buffer)},
+            )
             logger.warning("Queue is full for stage %s", event.stage_id)
             return
 
@@ -107,8 +145,17 @@ class ProcessingStartHandler:
         if not queue:
             set_start_scheduled(context, machine, False)
             if event.batch_id is not None:
-                set_batch_start_scheduled(context, stage.stage_id, event.batch_id, False)
-            context.add_event_log(event, "queue_empty", {"machine_id": machine.machine_id})
+                set_batch_start_scheduled(
+                    context,
+                    stage.stage_id,
+                    event.batch_id,
+                    False,
+                )
+            context.add_event_log(
+                event,
+                "queue_empty",
+                {"machine_id": machine.machine_id},
+            )
             return
 
         batch_id = take_queued_batch(context, stage, event.batch_id)
@@ -120,8 +167,14 @@ class ProcessingStartHandler:
                 {"machine_id": machine.machine_id},
             )
             return
+        drain_stage_buffer(context, stage, event.timestamp)
         batch = get_batch(context, batch_id)
-        processing_time = get_processing_time(context, stage, machine, batch.batch_id)
+        processing_time, is_resumed = take_processing_time(
+            context,
+            stage,
+            machine,
+            batch.batch_id,
+        )
         finish_time = event.timestamp + processing_time
         set_status(batch, PROCESSING_STATUS)
         set_status(machine, BUSY_STATUS)
@@ -137,7 +190,7 @@ class ProcessingStartHandler:
             batch.batch_id,
         )
 
-        if self._should_break(machine):
+        if not is_resumed and self._should_break(machine):
             breakdown_time = self._breakdown_time(event.timestamp, processing_time)
             context.event_queue.push(
                 Event(
@@ -170,6 +223,7 @@ class ProcessingStartHandler:
                 "batch_id": batch.batch_id,
                 "machine_id": machine.machine_id,
                 "finish_time": finish_time,
+                "is_resumed": is_resumed,
             },
         )
 
@@ -254,7 +308,11 @@ class MoveToNextStageHandler:
         """Schedule the next queue entry or complete the batch."""
         batch = get_batch(context, event.batch_id)
         current_stage = get_stage(context.production_line, event.stage_id)
-        next_stage_id = resolve_next_stage_id(batch, current_stage, context.production_line)
+        next_stage_id = resolve_next_stage_id(
+            batch,
+            current_stage,
+            context.production_line,
+        )
 
         if next_stage_id is None:
             set_status(batch, COMPLETED_STATUS)
@@ -361,7 +419,11 @@ class RepairFinishHandler:
             set_status(get_batch(context, interrupted_batch_id), WAITING_STATUS)
             record_queue_length(context, event.timestamp, stage.stage_id, len(queue))
 
-        context.add_event_log(event, "repair_finished", {"requeued_batch_id": interrupted_batch_id})
+        context.add_event_log(
+            event,
+            "repair_finished",
+            {"requeued_batch_id": interrupted_batch_id},
+        )
         self.starter.try_start_next(event.timestamp, stage, context)
 
 
@@ -391,8 +453,14 @@ class SimulationEndHandler:
 class ProcessingStarter:
     """Schedules processing start when a stage has a free machine and queue."""
 
-    def try_start_next(self, timestamp: float, stage: Any, context: SimulationContext) -> None:
+    def try_start_next(
+        self,
+        timestamp: float,
+        stage: Any,
+        context: SimulationContext,
+    ) -> None:
         """Schedule one processing start event if the stage can process work."""
+        drain_stage_buffer(context, stage, timestamp)
         queue = ensure_stage_queue(context, stage)
         machine = find_available_machine(stage, context)
         batch_id = find_unreserved_batch_id(context, stage, queue)
@@ -446,7 +514,10 @@ def get_machine(stage: Any, machine_id: str | None) -> Any:
     raise KeyError(f"Unknown machine_id: {machine_id}")
 
 
-def find_available_machine(stage: Any, context: SimulationContext | None = None) -> Any | None:
+def find_available_machine(
+    stage: Any,
+    context: SimulationContext | None = None,
+) -> Any | None:
     """Return the first idle machine in a stage."""
     for machine in getattr(stage, "machines"):
         start_scheduled = (
@@ -469,6 +540,40 @@ def ensure_stage_queue(context: SimulationContext, stage: Any) -> list[str]:
         return queue
     queues = context.raw_data.setdefault("_stage_queues", {})
     return queues.setdefault(stage.stage_id, [])
+
+
+def ensure_stage_buffer(context: SimulationContext, stage: Any) -> list[str]:
+    """Return the mutable runtime buffer for a stage."""
+    if hasattr(stage, "buffer"):
+        buffer = getattr(stage, "buffer")
+        if buffer is None:
+            buffer = []
+            setattr(stage, "buffer", buffer)
+        return buffer
+    buffers = context.raw_data.setdefault("_stage_buffers", {})
+    return buffers.setdefault(stage.stage_id, [])
+
+
+def drain_stage_buffer(
+    context: SimulationContext,
+    stage: Any,
+    timestamp: float,
+) -> None:
+    """Move buffered batches into the waiting queue while queue slots are free."""
+    queue = ensure_stage_queue(context, stage)
+    buffer = ensure_stage_buffer(context, stage)
+    queue_limit = getattr(stage, "queue_limit", None)
+
+    while buffer and (
+        queue_limit is None
+        or count_waiting_batches(context, stage, queue) < int(queue_limit)
+    ):
+        batch_id = buffer.pop(0)
+        if batch_id not in queue:
+            queue.append(batch_id)
+        set_status(get_batch(context, batch_id), WAITING_STATUS)
+        record_queue_length(context, timestamp, stage.stage_id, len(queue))
+        record_buffer_length(context, timestamp, stage.stage_id, len(buffer))
 
 
 def take_queued_batch(
@@ -504,6 +609,19 @@ def find_unreserved_batch_id(
     return None
 
 
+def count_waiting_batches(
+    context: SimulationContext,
+    stage: Any,
+    queue: list[str],
+) -> int:
+    """Return queued batches not already reserved for processing start."""
+    return sum(
+        1
+        for batch_id in queue
+        if not get_batch_start_scheduled(context, stage.stage_id, batch_id)
+    )
+
+
 def resolve_current_stage_id(batch: Any, production_line: Any) -> str:
     """Resolve the batch's current route stage."""
     route = getattr(batch, "route", None)
@@ -516,7 +634,11 @@ def resolve_current_stage_id(batch: Any, production_line: Any) -> str:
     return str(getattr(stages[0], "stage_id"))
 
 
-def resolve_next_stage_id(batch: Any, current_stage: Any, production_line: Any) -> str | None:
+def resolve_next_stage_id(
+    batch: Any,
+    current_stage: Any,
+    production_line: Any,
+) -> str | None:
     """Resolve the next route stage for a processed batch."""
     route = getattr(batch, "route", None)
     current_stage_index = int(getattr(batch, "current_stage_index", 0))
@@ -611,19 +733,19 @@ def set_batch_start_scheduled(
         stage_scheduled.discard(batch_id)
 
 
-def get_processing_time(
+def take_processing_time(
     context: SimulationContext,
     stage: Any,
     machine: Any,
     batch_id: str,
-) -> float:
-    """Return processing time, resuming interrupted work when available."""
+) -> tuple[float, bool]:
+    """Return processing time and whether the batch resumes interrupted work."""
     remaining_times = context.raw_data.setdefault("_remaining_processing_times", {})
     remaining_key = (stage.stage_id, batch_id)
     remaining_time = remaining_times.pop(remaining_key, None)
     if remaining_time is not None:
-        return float(remaining_time)
-    return float(getattr(machine, "processing_time"))
+        return float(remaining_time), True
+    return float(getattr(machine, "processing_time")), False
 
 
 def set_remaining_processing_time(
@@ -646,8 +768,11 @@ def set_status(entity: Any, value: str) -> None:
             setattr(entity, "status", status_type(value))
             return
         except ValueError:
-            setattr(entity, "status", status_type[value.upper()])
-            return
+            try:
+                setattr(entity, "status", status_type[value.upper()])
+                return
+            except KeyError:
+                logger.warning("Unknown enum status %s for %s", value, status_type)
     setattr(entity, "status", value)
 
 
@@ -668,6 +793,18 @@ def record_queue_length(
     """Store queue length observations for later analytics."""
     context.raw_data.setdefault("queue_lengths", []).append(
         {"timestamp": timestamp, "stage_id": stage_id, "queue_length": queue_length}
+    )
+
+
+def record_buffer_length(
+    context: SimulationContext,
+    timestamp: float,
+    stage_id: str,
+    buffer_length: int,
+) -> None:
+    """Store buffer length observations for later analytics."""
+    context.raw_data.setdefault("buffer_lengths", []).append(
+        {"timestamp": timestamp, "stage_id": stage_id, "buffer_length": buffer_length}
     )
 
 
