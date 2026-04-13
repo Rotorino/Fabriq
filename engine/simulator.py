@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import random
+from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
@@ -47,16 +48,17 @@ class SimulationEngine:
         logger.info("Simulation started: %s", self.scenario_name)
         if self.simulation_duration < 0:
             raise ValueError("simulation_duration must be non-negative")
-        batch_map = {str(batch.batch_id): batch for batch in self.batches}
+        production_line = deepcopy(self.production_line)
+        batches = deepcopy(list(self.batches))
+        batch_map = {str(batch.batch_id): batch for batch in batches}
         event_queue = EventQueue()
         context = SimulationContext(
             event_queue=event_queue,
-            production_line=self.production_line,
+            production_line=production_line,
             batches=batch_map,
         )
-        dispatcher = self.dispatcher or EventDispatcher(
-            build_default_handlers(self.rng or random.Random())
-        )
+        rng = deepcopy(self.rng) if self.rng is not None else random.Random()
+        dispatcher = self.dispatcher or EventDispatcher(build_default_handlers(rng))
 
         self._schedule_initial_events(context)
         self._run_loop(context, dispatcher)
@@ -104,7 +106,7 @@ class SimulationEngine:
         )
 
     def _build_result(self, context: SimulationContext) -> SimulationResult:
-        stages = list_stages(self.production_line)
+        stages = list_stages(context.production_line)
         machines = [
             machine for stage in stages for machine in getattr(stage, "machines", [])
         ]

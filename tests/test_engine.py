@@ -83,13 +83,47 @@ class EngineTestCase(unittest.TestCase):
             rng=random.Random(1),
         ).run()
 
-        self.assertEqual(batch.status, "completed")
+        self.assertEqual(result.batches[0].status, "completed")
         self.assertEqual(result.simulation_time, 20.0)
         self.assertEqual(
             [record.result for record in result.events].count("batch_completed"),
             1,
         )
         self.assertTrue(all(machine.status == "idle" for machine in result.machines))
+        self.assertEqual(batch.status, "new")
+        self.assertEqual(batch.current_stage_index, 0)
+        self.assertEqual(line.stages["s1"].queue, [])
+
+    def test_engine_does_not_mutate_input_model_between_runs(self) -> None:
+        line = make_line()
+        batches = [
+            FakeBatch(batch_id="b1", arrival_time=0.0, route=["s1", "s2"]),
+            FakeBatch(batch_id="b2", arrival_time=1.0, route=["s1", "s2"]),
+        ]
+        engine = SimulationEngine(
+            production_line=line,
+            batches=batches,
+            simulation_duration=20.0,
+            rng=random.Random(1),
+        )
+
+        first = engine.run()
+        second = engine.run()
+
+        self.assertEqual(len(first.events), len(second.events))
+        self.assertEqual(
+            [record.result for record in first.events],
+            [record.result for record in second.events],
+        )
+        self.assertEqual([batch.status for batch in batches], ["new", "new"])
+        self.assertEqual(
+            [batch.current_stage_index for batch in batches],
+            [0, 0],
+        )
+        self.assertTrue(
+            all(machine.status == "idle" for machine in line.stages["s1"].machines)
+        )
+        self.assertEqual(line.stages["s1"].queue, [])
 
     def test_processing_finish_at_simulation_duration_is_processed(self) -> None:
         stage = FakeStage(
@@ -108,7 +142,7 @@ class EngineTestCase(unittest.TestCase):
             rng=random.Random(1),
         ).run()
 
-        self.assertEqual(batch.status, "completed")
+        self.assertEqual(result.batches[0].status, "completed")
         self.assertEqual(result.events[-1].event_type, EventType.SIMULATION_END.value)
         self.assertIn(
             "processing_finished",
@@ -134,7 +168,7 @@ class EngineTestCase(unittest.TestCase):
         ).run()
 
         self.assertEqual(
-            [batch.status for batch in batches],
+            [batch.status for batch in result.batches],
             ["completed", "completed"],
         )
         processing_starts = [
@@ -146,6 +180,7 @@ class EngineTestCase(unittest.TestCase):
             {"timestamp": 0.0, "stage_id": "s1", "queue_length": 1},
             result.raw_data["queue_lengths"],
         )
+        self.assertEqual(result.stages[0].queue, [])
         self.assertEqual(stage.queue, [])
 
     def test_queue_limit_ignores_batch_reserved_for_processing_start(self) -> None:
@@ -168,7 +203,7 @@ class EngineTestCase(unittest.TestCase):
         ).run()
 
         self.assertEqual(
-            [batch.status for batch in batches],
+            [batch.status for batch in result.batches],
             ["completed", "completed"],
         )
         self.assertNotIn("queue_full", [record.result for record in result.events])
@@ -206,7 +241,7 @@ class EngineTestCase(unittest.TestCase):
             {record.machine_id for record in processing_starts},
             {"m1", "m2"},
         )
-        self.assertTrue(all(batch.status == "completed" for batch in batches))
+        self.assertTrue(all(batch.status == "completed" for batch in result.batches))
 
     def test_machine_breakdown_requeues_and_completes_batch_after_repair(self) -> None:
         stage = FakeStage(
@@ -234,9 +269,9 @@ class EngineTestCase(unittest.TestCase):
         results = [record.result for record in result.events]
         self.assertIn("machine_broken", results)
         self.assertIn("repair_finished", results)
-        self.assertEqual(batch.status, "completed")
-        self.assertEqual(stage.machines[0].status, "idle")
-        self.assertIsNone(stage.machines[0].interrupted_batch_id)
+        self.assertEqual(result.batches[0].status, "completed")
+        self.assertEqual(result.machines[0].status, "idle")
+        self.assertIsNone(result.machines[0].interrupted_batch_id)
 
     def test_full_queue_sends_batch_to_buffer_then_processes_it(self) -> None:
         stage = FakeStage(
@@ -261,7 +296,9 @@ class EngineTestCase(unittest.TestCase):
 
         results = [record.result for record in result.events]
         self.assertIn("buffered", results)
-        self.assertEqual([batch.status for batch in batches], ["completed"] * 3)
+        self.assertEqual([batch.status for batch in result.batches], ["completed"] * 3)
+        self.assertEqual(result.stages[0].queue, [])
+        self.assertEqual(result.stages[0].buffer, [])
         self.assertEqual(stage.queue, [])
         self.assertEqual(stage.buffer, [])
         self.assertIn(
@@ -291,10 +328,10 @@ class EngineTestCase(unittest.TestCase):
         ).run()
 
         self.assertEqual(
-            [batch.status for batch in batches],
+            [batch.status for batch in result.batches],
             ["completed", "completed", "rejected"],
         )
-        self.assertTrue(batches[2].is_rejected)
+        self.assertTrue(result.batches[2].is_rejected)
         self.assertIn(
             "buffer_full_marked_for_rejection",
             [record.result for record in result.events],
@@ -318,8 +355,8 @@ class EngineTestCase(unittest.TestCase):
             rng=random.Random(1),
         ).run()
 
-        self.assertEqual(batch.status, "rejected")
-        self.assertTrue(batch.is_rejected)
+        self.assertEqual(result.batches[0].status, "rejected")
+        self.assertTrue(result.batches[0].is_rejected)
         self.assertIn("batch_rejected", [record.result for record in result.events])
 
 
