@@ -1,0 +1,148 @@
+name: Python CI
+
+on:
+  pull_request:
+    branches:
+      - Dev
+      - develop
+      - main
+      - master
+  push:
+    branches:
+      - Dev
+      - develop
+      - main
+      - master
+    paths:
+      - "**/*.py"
+      - "configs/**/*.json"
+      - "requirements*.txt"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            python -m pip install -r requirements.txt
+          else
+            python -m pip install pytest
+          fi
+
+      - name: Show environment
+        run: |
+          python --version
+          python -m pip --version
+          python -m pip list
+
+      - name: Compile Python packages
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          package_dirs = [
+              path
+              for path in Path(".").iterdir()
+              if path.is_dir()
+              and (path / "__init__.py").exists()
+              and path.name not in {".git", ".github"}
+          ]
+          targets = [str(path) for path in package_dirs]
+          if Path("tests").is_dir():
+              targets.append("tests")
+          if not targets:
+              raise SystemExit("No Python packages or tests found")
+          print("compile targets:", ", ".join(targets))
+          subprocess.run([sys.executable, "-m", "compileall", *targets], check=True)
+          PY
+
+      - name: Run universal unittest suite
+        run: python -m unittest discover -s tests -q
+
+      - name: Run pytest suite
+        run: python -m pytest -q
+
+      - name: Run scenario smoke tests
+        run: |
+          shopt -s nullglob
+          configs=(configs/*.json)
+          if [ ${#configs[@]} -eq 0 ]; then
+            echo "No configs/*.json files found"
+            exit 1
+          fi
+          for config in "${configs[@]}"; do
+            echo "Running scenario: ${config}"
+            python -m app.main --config "${config}" --seed 1
+          done
+
+      - name: Verify simulation engine repeatability
+        run: |
+          python - <<'PY'
+          import random
+
+          from engine import SimulationEngine
+          from scenario import build_scenario, load_config
+
+          scenario = build_scenario(load_config("configs/base_scenario.json"))
+          engine = SimulationEngine(
+              production_line=scenario.production_line,
+              batches=scenario.batches,
+              simulation_duration=scenario.scenario_config.simulation_duration,
+              scenario_name=scenario.scenario_config.name,
+              rng=random.Random(1),
+          )
+          first = engine.run()
+          second = engine.run()
+          first_results = [event.result for event in first.events]
+          second_results = [event.result for event in second.events]
+          if first_results != second_results:
+              raise SystemExit("Simulation is not repeatable with a fixed seed")
+          input_statuses = [
+              getattr(batch.status, "value", batch.status)
+              for batch in scenario.batches
+          ]
+          if any(status != "new" for status in input_statuses):
+              raise SystemExit("Simulation mutated input batches")
+          print(f"repeatable events: {len(first.events)}")
+          PY
+
+      - name: Upload logs and results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-output-python-${{ matrix.python-version }}
+          if-no-files-found: ignore
+          path: |
+            logs/
+            results/

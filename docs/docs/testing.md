@@ -19,6 +19,12 @@ python -m unittest discover -s tests -q
 python -m compileall app domain scenario engine analytics reporting visualization tests
 ```
 
+Pytest-проверка:
+
+```bash
+python -m pytest -q
+```
+
 Проверка полного запуска:
 
 ```bash
@@ -26,6 +32,19 @@ python -m app.main --config configs/base_scenario.json
 python -m app.main --config configs/high_load.json
 python -m app.main --config configs/frequent_breakdowns.json
 ```
+
+## GitHub Actions
+
+Workflow `.github/workflows/ci.yml` запускается на push и pull request для
+веток `Dev`, `develop`, `main` и `master`. Он рассчитан на расширение проекта:
+
+- ставит зависимости из `requirements.txt`;
+- компилирует найденные Python-пакеты и `tests`;
+- запускает универсальный `unittest discover`;
+- запускает `pytest`;
+- прогоняет все сценарии из `configs/*.json` через CLI;
+- проверяет повторяемость ядра с фиксированным seed;
+- сохраняет `logs/` и `results/` как артефакты workflow.
 
 ## Что покрывают тесты
 
