@@ -124,10 +124,20 @@ jobs:
           )
           first = engine.run()
           second = engine.run()
-          first_results = [event.result for event in first.events]
-          second_results = [event.result for event in second.events]
+          first_results = [event.result for event in first.event_log]
+          second_results = [event.result for event in second.event_log]
           if first_results != second_results:
               raise SystemExit("Simulation is not repeatable with a fixed seed")
+          first_event_signature = [
+              (event.timestamp, event.event_type.value, event.batch_id, event.stage_id)
+              for event in first.events
+          ]
+          second_event_signature = [
+              (event.timestamp, event.event_type.value, event.batch_id, event.stage_id)
+              for event in second.events
+          ]
+          if first_event_signature != second_event_signature:
+              raise SystemExit("Raw event stream is not repeatable with a fixed seed")
           input_statuses = [
               getattr(batch.status, "value", batch.status)
               for batch in scenario.batches
