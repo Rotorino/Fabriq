@@ -11,6 +11,15 @@ reports, and writes SVG charts.
 python -m app.main --config configs/base_scenario.json
 ```
 
+Scenario comparison is also supported from the CLI:
+
+```bash
+python -m app.main --config \
+  configs/base_scenario.json \
+  configs/high_load.json \
+  configs/frequent_breakdowns.json
+```
+
 Outputs are written to `results/<scenario_name>/`:
 
 - `report.json`
@@ -19,6 +28,13 @@ Outputs are written to `results/<scenario_name>/`:
 - `charts/queue_length.svg`
 - `charts/machine_utilization.svg`
 - `charts/batch_cycle_time.svg`
+
+When multiple configs are passed, a comparison report is written to
+`results/comparison/`:
+
+- `comparison_report.json`
+- `comparison.csv`
+- `comparison_summary.txt`
 
 Logs are written to `logs/`.
 

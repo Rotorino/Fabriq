@@ -6,10 +6,11 @@ import argparse
 import logging
 import random
 from pathlib import Path
+from typing import Any
 
 from analytics import calculate_analytics
 from engine import SimulationEngine
-from reporting import build_report
+from reporting import build_comparison_report, build_report
 from scenario import build_scenario, load_config
 from visualization import build_charts
 
@@ -20,9 +21,30 @@ def main() -> None:
     """Run the application from CLI arguments."""
     args = _parse_args()
     _setup_logging()
-    logger.info("Loading config: %s", args.config)
-    scenario_input = build_scenario(load_config(args.config))
-    rng_seed = args.seed
+    run_outputs = [_run_single_config(config_path, args.results_dir, args.seed) for config_path in args.config]
+    if len(run_outputs) == 1:
+        report = run_outputs[0]["report"]
+        logger.info("Simulation report saved: %s", report["files"]["json"])
+        print(report["files"]["json"])
+        return
+
+    comparison_report = build_comparison_report(
+        [output["analytics"] for output in run_outputs],
+        Path(args.results_dir) / "comparison",
+    )
+    logger.info("Comparison report saved: %s", comparison_report["files"]["json"])
+    print(comparison_report["files"]["json"])
+
+
+def _run_single_config(
+    config_path: str,
+    results_dir: str,
+    seed_override: int | None,
+) -> dict[str, Any]:
+    """Run one scenario configuration and export its outputs."""
+    logger.info("Loading config: %s", config_path)
+    scenario_input = build_scenario(load_config(config_path))
+    rng_seed = seed_override
     if rng_seed is None:
         rng_seed = scenario_input.scenario_config.seed
 
@@ -34,7 +56,7 @@ def main() -> None:
         rng=random.Random(rng_seed),
     ).run()
     analytics = calculate_analytics(result)
-    scenario_output_dir = Path(args.results_dir) / result.scenario_name
+    scenario_output_dir = Path(results_dir) / result.scenario_name
     chart_paths = build_charts(result, analytics, scenario_output_dir / "charts")
     report = build_report(
         result=result,
@@ -43,8 +65,7 @@ def main() -> None:
         output_dir=scenario_output_dir,
         chart_paths=chart_paths,
     )
-    logger.info("Simulation report saved: %s", report["files"]["json"])
-    print(report["files"]["json"])
+    return {"result": result, "analytics": analytics, "report": report}
 
 
 def _parse_args() -> argparse.Namespace:
@@ -53,8 +74,9 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--config",
+        nargs="+",
         required=True,
-        help="Path to JSON or YAML config",
+        help="One or more paths to JSON or YAML configs",
     )
     parser.add_argument("--results-dir", default="results", help="Output directory")
     parser.add_argument("--seed", type=int, default=None, help="Random seed override")

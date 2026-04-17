@@ -5,7 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from reporting.exporter import export_csv, export_json, export_text
+from analytics import compare_analytics_runs
+from reporting.exporter import export_csv, export_json, export_rows_csv, export_text
 
 
 def build_report(
@@ -48,6 +49,45 @@ def build_report(
         "txt": str(txt_path),
     }
     export_json(report, output_path / "report.json")
+    return report
+
+
+def build_comparison_report(
+    analytics_runs: list[dict[str, Any]],
+    output_dir: str | Path,
+) -> dict[str, Any]:
+    """Build and export a multi-scenario comparison report."""
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    comparison_rows = compare_analytics_runs(analytics_runs)
+    report = {
+        "scenarios": [analytics["scenario_name"] for analytics in analytics_runs],
+        "comparison": comparison_rows,
+        "best_output_scenario": _best_scenario(
+            comparison_rows,
+            "output_units",
+            reverse=True,
+        ),
+        "lowest_cycle_time_scenario": _best_scenario(
+            comparison_rows,
+            "average_cycle_time",
+            reverse=False,
+        ),
+        "lowest_rejection_scenario": _best_scenario(
+            comparison_rows,
+            "rejection_rate",
+            reverse=False,
+        ),
+    }
+    summary = _build_comparison_summary(report)
+    csv_path = export_rows_csv(comparison_rows, output_path / "comparison.csv")
+    txt_path = export_text(summary, output_path / "comparison_summary.txt")
+    report["files"] = {
+        "json": str(output_path / "comparison_report.json"),
+        "csv": str(csv_path),
+        "txt": str(txt_path),
+    }
+    export_json(report, output_path / "comparison_report.json")
     return report
 
 
@@ -105,3 +145,45 @@ def _collect_problem_stages(analytics: dict[str, Any]) -> list[dict[str, Any]]:
         reverse=True,
     )
     return stages[:3]
+
+
+def _best_scenario(
+    comparison_rows: list[dict[str, Any]],
+    metric_name: str,
+    *,
+    reverse: bool,
+) -> dict[str, Any] | None:
+    """Return the best scenario row for a selected metric."""
+    if not comparison_rows:
+        return None
+    return sorted(
+        comparison_rows,
+        key=lambda row: float(row[metric_name]),
+        reverse=reverse,
+    )[0]
+
+
+def _build_comparison_summary(report: dict[str, Any]) -> str:
+    """Return a plain-text summary for a comparison report."""
+    best_output = report["best_output_scenario"]
+    lowest_cycle = report["lowest_cycle_time_scenario"]
+    lowest_rejection = report["lowest_rejection_scenario"]
+    lines = [
+        "Scenario comparison summary",
+        f"Compared scenarios: {', '.join(report['scenarios'])}",
+    ]
+    if best_output is not None:
+        lines.append(
+            f"Best output: {best_output['scenario_name']} ({best_output['output_units']})"
+        )
+    if lowest_cycle is not None:
+        lines.append(
+            "Lowest average cycle time: "
+            f"{lowest_cycle['scenario_name']} ({lowest_cycle['average_cycle_time']:.3f})"
+        )
+    if lowest_rejection is not None:
+        lines.append(
+            "Lowest rejection rate: "
+            f"{lowest_rejection['scenario_name']} ({lowest_rejection['rejection_rate']:.3f})"
+        )
+    return "\n".join(lines)

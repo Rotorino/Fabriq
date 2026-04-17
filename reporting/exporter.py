@@ -42,6 +42,23 @@ def export_text(summary: str, path: str | Path) -> Path:
     return output_path
 
 
+def export_rows_csv(rows: list[dict[str, Any]], path: str | Path) -> Path:
+    """Export homogeneous rows to a CSV file."""
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in fieldnames:
+                fieldnames.append(key)
+    with output_path.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames or ["value"])
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+    return output_path
+
+
 def _write_metric_rows(
     writer: csv.DictWriter[str],
     section: str,
