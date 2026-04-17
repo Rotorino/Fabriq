@@ -95,7 +95,7 @@ def _validate_batches(
         unknown = [stage_id for stage_id in route if stage_id not in stage_ids]
         if unknown:
             raise ConfigurationError(f"Unknown route stage_id: {unknown[0]}")
-        _validate_route_consistency(route, stages)
+        _validate_route_consistency(route, stages, entry_stage_ids)
     elif len(entry_stage_ids) > 1 and mode != "fixed":
         raise ConfigurationError(
             "batches.route is required when the production line has multiple entry stages"
@@ -118,10 +118,13 @@ def _validate_batches(
             _validate_non_negative(item, "arrival_time")
             if "size" in item:
                 _validate_positive_int(item, "size")
-            elif not isinstance(batches.get("size"), int) or int(batches["size"]) <= 0:
-                raise ConfigurationError(
-                    "Each fixed batch must define a positive size or batches.size"
-                )
+            else:
+                try:
+                    _validate_positive_int(batches, "size")
+                except ConfigurationError as exc:
+                    raise ConfigurationError(
+                        "Each fixed batch must define a positive size or batches.size"
+                    ) from exc
             item_route = item.get("route", route)
             if not isinstance(item_route, list) or not item_route:
                 raise ConfigurationError(
@@ -130,7 +133,7 @@ def _validate_batches(
             unknown = [stage_id for stage_id in item_route if stage_id not in stage_ids]
             if unknown:
                 raise ConfigurationError(f"Unknown route stage_id: {unknown[0]}")
-            _validate_route_consistency(item_route, stages)
+            _validate_route_consistency(item_route, stages, entry_stage_ids)
         return
 
     _validate_positive_int(batches, "count")
@@ -150,8 +153,14 @@ def _validate_batches(
 def _validate_route_consistency(
     route: list[str],
     stages: list[dict[str, Any]],
+    entry_stage_ids: list[str],
 ) -> None:
     stage_map = {str(stage["stage_id"]): stage for stage in stages}
+    if route[0] not in entry_stage_ids:
+        allowed_entries = ", ".join(sorted(entry_stage_ids))
+        raise ConfigurationError(
+            f"Route must start from an entry stage: {allowed_entries}"
+        )
     for current_stage_id, next_stage_id in zip(route, route[1:]):
         configured_next = stage_map[current_stage_id].get("next_stage_id")
         if configured_next is not None and configured_next != next_stage_id:
@@ -230,7 +239,7 @@ def _validate_non_negative_or_none(data: dict[str, Any], key: str) -> None:
 
 def _validate_positive_int(data: dict[str, Any], key: str) -> None:
     value = data.get(key)
-    if not isinstance(value, int) or value <= 0:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ConfigurationError(f"{key} must be a positive integer")
 
 

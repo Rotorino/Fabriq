@@ -54,6 +54,31 @@ class ScenarioTestCase(unittest.TestCase):
         with self.assertRaises(ConfigurationError):
             build_scenario(config)
 
+    def test_boolean_batch_count_and_size_are_rejected(self) -> None:
+        config = load_config("configs/base_scenario.json")
+        config["batches"]["count"] = True
+        config["batches"]["size"] = True
+
+        with self.assertRaises(ConfigurationError):
+            build_scenario(config)
+
+    def test_fixed_batches_boolean_parent_size_is_rejected(self) -> None:
+        config = load_config("configs/base_scenario.json")
+        config["batches"] = {
+            "mode": "fixed",
+            "size": True,
+            "items": [
+                {
+                    "batch_id": "batch-a",
+                    "arrival_time": 0.0,
+                    "route": ["cutting", "assembly", "quality"],
+                }
+            ],
+        }
+
+        with self.assertRaises(ConfigurationError):
+            build_scenario(config)
+
     def test_missing_simulation_duration_is_rejected(self) -> None:
         config = load_config("configs/base_scenario.json")
         del config["simulation_duration"]
@@ -64,6 +89,53 @@ class ScenarioTestCase(unittest.TestCase):
     def test_unknown_route_stage_is_rejected(self) -> None:
         config = load_config("configs/base_scenario.json")
         config["batches"]["route"] = ["missing"]
+
+        with self.assertRaises(ConfigurationError):
+            build_scenario(config)
+
+    def test_route_must_start_from_entry_stage(self) -> None:
+        config = {
+            "scenario_name": "bad_route",
+            "simulation_duration": 10,
+            "stages": [
+                {
+                    "stage_id": "cutting",
+                    "name": "Cutting",
+                    "next_stage_id": "assembly",
+                    "machines": [
+                        {
+                            "machine_id": "cut-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+                {
+                    "stage_id": "assembly",
+                    "name": "Assembly",
+                    "machines": [
+                        {
+                            "machine_id": "asm-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+            ],
+            "batches": {
+                "mode": "fixed",
+                "items": [
+                    {
+                        "batch_id": "batch-a",
+                        "arrival_time": 0.0,
+                        "size": 1,
+                        "route": ["assembly"],
+                    }
+                ],
+            },
+        }
 
         with self.assertRaises(ConfigurationError):
             build_scenario(config)
