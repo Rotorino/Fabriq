@@ -43,6 +43,13 @@ class Batch:
         """Return the current route stage identifier."""
         return self.route[self.current_stage_index]
 
+    def get_next_stage_id(self) -> str | None:
+        """Return the next route stage identifier if the route continues."""
+        next_index = self.current_stage_index + 1
+        if next_index >= len(self.route):
+            return None
+        return self.route[next_index]
+
     def move_to_next_stage(self) -> str | None:
         """Advance the batch to the next route stage and return it."""
         next_index = self.current_stage_index + 1
@@ -159,6 +166,10 @@ class Buffer:
             return None
         return self.batch_ids.pop(0)
 
+    def __len__(self) -> int:
+        """Return the number of buffered batches."""
+        return len(self.batch_ids)
+
 
 @dataclass(slots=True)
 class Stage:
@@ -174,7 +185,7 @@ class Stage:
     stage_type: StageType = StageType.PROCESSING
     routing_strategy: RoutingStrategy = RoutingStrategy.SEQUENTIAL
     queue: list[str] = field(default_factory=list)
-    buffer: list[str] = field(default_factory=list)
+    buffer: Buffer = field(default_factory=lambda: Buffer(capacity=0))
 
     def __post_init__(self) -> None:
         """Validate stage fields."""
@@ -189,6 +200,13 @@ class Stage:
         if self.buffer_capacity is not None and self.buffer_capacity < 0:
             raise ValueError("buffer_capacity must be non-negative or None")
         _validate_probability("reject_probability", self.reject_probability)
+        if not isinstance(self.buffer, Buffer):
+            self.buffer = Buffer(
+                capacity=self.buffer_capacity,
+                batch_ids=list(self.buffer),
+            )
+        if self.buffer.capacity != self.buffer_capacity:
+            self.buffer.capacity = self.buffer_capacity
         for machine in self.machines:
             if machine.stage_id != self.stage_id:
                 raise ValueError(
@@ -201,11 +219,11 @@ class Stage:
 
     def has_buffer_capacity(self) -> bool:
         """Return True when the stage buffer can accept a batch."""
-        return self.buffer_capacity is None or len(self.buffer) < self.buffer_capacity
+        return self.buffer.can_accept()
 
-    def enqueue_batch(self, batch_id: str) -> None:
+    def enqueue_batch(self, batch_id: str, *, enforce_capacity: bool = True) -> None:
         """Place a batch into the stage queue."""
-        if not self.has_queue_capacity():
+        if enforce_capacity and not self.has_queue_capacity():
             raise ValueError(f"queue is full for stage {self.stage_id}")
         self.queue.append(batch_id)
 
@@ -219,13 +237,26 @@ class Stage:
         """Place a batch into the stage buffer."""
         if not self.has_buffer_capacity():
             raise ValueError(f"buffer is full for stage {self.stage_id}")
-        self.buffer.append(batch_id)
+        self.buffer.add_batch(batch_id)
 
     def release_buffered_batch(self) -> str | None:
         """Return the oldest buffered batch."""
-        if not self.buffer:
-            return None
-        return self.buffer.pop(0)
+        return self.buffer.pop_batch()
+
+    def remove_from_queue(self, batch_id: str) -> bool:
+        """Remove a specific batch from the waiting queue if present."""
+        if batch_id not in self.queue:
+            return False
+        self.queue.remove(batch_id)
+        return True
+
+    def queue_length(self) -> int:
+        """Return the number of queued batches."""
+        return len(self.queue)
+
+    def buffer_length(self) -> int:
+        """Return the number of buffered batches."""
+        return len(self.buffer)
 
     def find_machine(self, machine_id: str) -> Machine:
         """Return a machine by identifier."""
@@ -276,6 +307,10 @@ class ProductionLine:
     def ordered_stage_ids(self) -> list[str]:
         """Return stage identifiers in their configured order."""
         return list(self.stages.keys())
+
+    def ordered_stages(self) -> list[Stage]:
+        """Return stages in their configured order."""
+        return list(self.stages.values())
 
     def route_from_entry(self) -> list[str]:
         """Return the logical route by following stage links from the entry stage."""

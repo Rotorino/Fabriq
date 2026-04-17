@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from domain.entities import Batch, Machine, ProductionLine, Stage
+from domain.entities import Batch, Buffer, Machine, ProductionLine, Stage
 from domain.enums import RoutingStrategy, StageType
 from domain.models import ScenarioConfig
 from scenario.config_loader import ConfigurationError
@@ -89,6 +89,7 @@ def _build_stages(raw_stages: list[dict[str, Any]]) -> dict[str, Stage]:
             queue_limit=raw_stage.get("queue_limit"),
             reject_probability=float(raw_stage.get("reject_probability", 0.0)),
             buffer_capacity=raw_stage.get("buffer_capacity", 0),
+            buffer=Buffer(capacity=raw_stage.get("buffer_capacity", 0)),
             next_stage_id=raw_stage.get("next_stage_id"),
             stage_type=StageType(
                 str(raw_stage.get("stage_type", StageType.PROCESSING.value))

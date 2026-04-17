@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from copy import deepcopy
 from importlib import import_module
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class ConfigurationError(ValueError):
@@ -17,6 +20,7 @@ def load_config(path: str | Path) -> dict[str, Any]:
     """Load a JSON or YAML scenario configuration from disk."""
     config_path = Path(path)
     suffix = config_path.suffix.lower()
+    logger.info("Loading config: %s", config_path)
     try:
         with config_path.open("r", encoding="utf-8") as file:
             if suffix == ".json":
@@ -28,8 +32,10 @@ def load_config(path: str | Path) -> dict[str, Any]:
                     f"Unsupported config format: {config_path.suffix or '<none>'}"
                 )
     except FileNotFoundError as exc:
+        logger.error("Config file not found: %s", config_path)
         raise ConfigurationError(f"Config file not found: {config_path}") from exc
     except json.JSONDecodeError as exc:
+        logger.error("Invalid JSON in config: %s", config_path)
         raise ConfigurationError(f"Invalid JSON in config: {config_path}") from exc
 
     if not isinstance(data, dict):

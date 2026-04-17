@@ -115,6 +115,7 @@ batches:
         self.assertEqual(cutting.next_stage_id, "assembly")
         self.assertEqual(len(cutting.machines), 1)
         self.assertEqual(cutting.machines[0].stage_id, "cutting")
+        self.assertEqual(cutting.buffer.capacity, 2)
         self.assertEqual(line.route_from_entry(), ["cutting", "assembly", "quality"])
 
     def test_default_route_follows_stage_links_not_stage_definition_order(self) -> None:
