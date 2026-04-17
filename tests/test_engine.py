@@ -415,9 +415,10 @@ class EngineTestCase(unittest.TestCase):
             rng=random.Random(1),
         ).run()
 
-        self.assertTrue(all(hasattr(event, "payload") for event in result.events))
+        self.assertTrue(all(hasattr(event, "payload") for event in result.processed_events))
         self.assertTrue(all(hasattr(record, "result") for record in result.event_log))
-        self.assertEqual(result.events[0].event_type, EventType.BATCH_ARRIVAL)
+        self.assertTrue(all(hasattr(record, "result") for record in result.events))
+        self.assertEqual(result.processed_events[0].event_type, EventType.BATCH_ARRIVAL)
 
     def test_machine_can_break_multiple_times_while_resuming_same_batch(self) -> None:
         stage = FakeStage(

@@ -36,9 +36,10 @@ def calculate_analytics(result: Any) -> dict[str, Any]:
 
 
 def _batch_metrics(result: Any) -> list[dict[str, Any]]:
+    processed_events = getattr(result, "processed_events", result.events)
     arrivals = {
         event.batch_id: event.timestamp
-        for event in result.events
+        for event in processed_events
         if getattr(event.event_type, "value", event.event_type) == "BATCH_ARRIVAL"
         and event.batch_id
     }
