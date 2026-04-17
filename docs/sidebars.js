@@ -4,6 +4,7 @@ const sidebars = {
   coreSidebar: [
     'index',
     'architecture',
+    'scenario-module',
     'event-flow',
     'integration-contract',
     'simulation-result',
