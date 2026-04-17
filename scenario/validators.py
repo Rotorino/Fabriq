@@ -198,13 +198,13 @@ def _required_string(data: dict[str, Any], key: str) -> str:
 
 
 def _validate_probability(data: dict[str, Any], key: str) -> None:
-    value = float(data.get(key, 0.0))
+    value = _validate_real_number(data, key)
     if not 0.0 <= value <= 1.0:
         raise ConfigurationError(f"{key} must be in range [0.0, 1.0]")
 
 
 def _validate_non_negative(data: dict[str, Any], key: str) -> None:
-    value = float(data.get(key, 0.0))
+    value = _validate_real_number(data, key)
     if value < 0:
         raise ConfigurationError(f"{key} must be non-negative")
 
@@ -223,6 +223,13 @@ def _validate_positive_int(data: dict[str, Any], key: str) -> None:
     value = data.get(key)
     if not isinstance(value, int) or value <= 0:
         raise ConfigurationError(f"{key} must be a positive integer")
+
+
+def _validate_real_number(data: dict[str, Any], key: str) -> float:
+    value = data.get(key, 0.0)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ConfigurationError(f"{key} must be a number")
+    return float(value)
 
 
 def _validate_enum_value(

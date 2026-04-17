@@ -84,7 +84,7 @@ class EngineTestCase(unittest.TestCase):
         ).run()
 
         self.assertEqual(result.batches[0].status, "completed")
-        self.assertEqual(result.simulation_time, 20.0)
+        self.assertEqual(result.simulation_time, 5.0)
         self.assertEqual(
             [record.result for record in result.event_log].count("batch_completed"),
             1,
@@ -189,6 +189,52 @@ class EngineTestCase(unittest.TestCase):
             "processing_finished",
             [record.result for record in result.event_log],
         )
+        self.assertEqual(result.simulation_time, 10.0)
+
+    def test_simulation_ends_at_last_processed_event_when_queue_is_empty(self) -> None:
+        stage = FakeStage(
+            stage_id="s1",
+            machines=[
+                FakeMachine(machine_id="m1", stage_id="s1", processing_time=1.0),
+            ],
+        )
+        line = FakeLine(stages={"s1": stage})
+        batch = FakeBatch(batch_id="b1", arrival_time=0.0, route=["s1"])
+
+        result = SimulationEngine(
+            production_line=line,
+            batches=[batch],
+            simulation_duration=10.0,
+            rng=random.Random(1),
+        ).run()
+
+        self.assertEqual(result.simulation_time, 1.0)
+        self.assertEqual(result.event_log[-1].timestamp, 1.0)
+        self.assertEqual(result.event_log[-1].event_type, EventType.SIMULATION_END.value)
+
+    def test_simulation_stops_at_duration_when_next_event_is_in_future(self) -> None:
+        stage = FakeStage(
+            stage_id="s1",
+            machines=[
+                FakeMachine(machine_id="m1", stage_id="s1", processing_time=1.0),
+            ],
+        )
+        line = FakeLine(stages={"s1": stage})
+        batch = FakeBatch(batch_id="b1", arrival_time=15.0, route=["s1"])
+
+        result = SimulationEngine(
+            production_line=line,
+            batches=[batch],
+            simulation_duration=10.0,
+            rng=random.Random(1),
+        ).run()
+
+        self.assertEqual(result.simulation_time, 10.0)
+        self.assertEqual(
+            [record.result for record in result.event_log],
+            ["simulation_stopped"],
+        )
+        self.assertEqual(result.batches[0].status, "new")
 
     def test_batch_waits_when_machine_is_busy(self) -> None:
         stage = FakeStage(

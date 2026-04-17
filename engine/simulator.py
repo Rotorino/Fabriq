@@ -65,8 +65,8 @@ class SimulationEngine:
         dispatcher = self.dispatcher or EventDispatcher(build_default_handlers(rng))
 
         self._schedule_initial_events(context)
-        self._run_loop(context, dispatcher)
-        self._stop_at_duration(context, dispatcher)
+        stopped_due_to_duration = self._run_loop(context, dispatcher)
+        self._finalize(context, dispatcher, stopped_due_to_duration)
         result = self._build_result(context)
         logger.info("Simulation finished: %s", self.scenario_name)
         return result
@@ -100,25 +100,33 @@ class SimulationEngine:
         self,
         context: SimulationContext,
         dispatcher: EventDispatcher,
-    ) -> None:
+    ) -> bool:
+        stopped_due_to_duration = False
         while not context.event_queue.is_empty() and not context.stopped:
-            event = context.event_queue.pop()
-            if event.timestamp > self.simulation_duration:
+            if context.event_queue.peek().timestamp > self.simulation_duration:
+                stopped_due_to_duration = True
                 break
+            event = context.event_queue.pop()
             context.current_time = event.timestamp
             dispatcher.dispatch(event, context)
+        return stopped_due_to_duration
 
-    def _stop_at_duration(
+    def _finalize(
         self,
         context: SimulationContext,
         dispatcher: EventDispatcher,
+        stopped_due_to_duration: bool,
     ) -> None:
         if context.stopped:
             return
-        context.current_time = float(self.simulation_duration)
+        if stopped_due_to_duration:
+            end_time = float(self.simulation_duration)
+        else:
+            end_time = float(context.current_time)
+        context.current_time = end_time
         dispatcher.dispatch(
             Event(
-                timestamp=float(self.simulation_duration),
+                timestamp=end_time,
                 event_type=EventType.SIMULATION_END,
             ),
             context,

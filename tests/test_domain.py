@@ -103,5 +103,52 @@ class DomainEntityTestCase(unittest.TestCase):
         )
 
         self.assertEqual(line.route_from_entry(), ["cutting", "assembly"])
-        self.assertEqual([stage.stage_id for stage in line.ordered_stages()], ["cutting", "assembly"])
-        self.assertEqual([machine.machine_id for machine in line.all_machines()], ["cut-1", "asm-1"])
+        self.assertEqual(
+            [stage.stage_id for stage in line.ordered_stages()],
+            ["cutting", "assembly"],
+        )
+        self.assertEqual(
+            [machine.machine_id for machine in line.all_machines()],
+            ["cut-1", "asm-1"],
+        )
+
+    def test_production_line_orders_stages_by_route_not_by_dict_insertion(self) -> None:
+        assembly = Stage(
+            stage_id="assembly",
+            name="Assembly",
+            machines=[
+                Machine(
+                    machine_id="asm-1",
+                    stage_id="assembly",
+                    processing_time=3.0,
+                )
+            ],
+            queue_limit=2,
+        )
+        cutting = Stage(
+            stage_id="cutting",
+            name="Cutting",
+            machines=[
+                Machine(
+                    machine_id="cut-1",
+                    stage_id="cutting",
+                    processing_time=2.0,
+                )
+            ],
+            queue_limit=2,
+            next_stage_id="assembly",
+        )
+        line = ProductionLine(
+            stages={"assembly": assembly, "cutting": cutting},
+            entry_stage_id="cutting",
+        )
+
+        self.assertEqual(line.ordered_stage_ids(), ["cutting", "assembly"])
+        self.assertEqual(
+            [stage.stage_id for stage in line.ordered_stages()],
+            ["cutting", "assembly"],
+        )
+        self.assertEqual(
+            [machine.machine_id for machine in line.all_machines()],
+            ["cut-1", "asm-1"],
+        )

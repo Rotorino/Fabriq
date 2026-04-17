@@ -300,17 +300,17 @@ class ProductionLine:
         """Return all machines in stage order."""
         return [
             machine
-            for stage in self.stages.values()
+            for stage in self.ordered_stages()
             for machine in stage.machines
         ]
 
     def ordered_stage_ids(self) -> list[str]:
         """Return stage identifiers in their configured order."""
-        return list(self.stages.keys())
+        return self.route_from_entry()
 
     def ordered_stages(self) -> list[Stage]:
         """Return stages in their configured order."""
-        return list(self.stages.values())
+        return [self.get_stage(stage_id) for stage_id in self.ordered_stage_ids()]
 
     def route_from_entry(self) -> list[str]:
         """Return the logical route by following stage links from the entry stage."""

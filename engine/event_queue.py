@@ -37,6 +37,12 @@ class EventQueue:
             raise IndexError("Cannot pop from an empty event queue")
         return heapq.heappop(self._heap)[2]
 
+    def peek(self) -> Event:
+        """Return the earliest event without removing it from the queue."""
+        if not self._heap:
+            raise IndexError("Cannot peek into an empty event queue")
+        return self._heap[0][2]
+
     def is_empty(self) -> bool:
         """Return True when the queue has no events."""
         return not self._heap

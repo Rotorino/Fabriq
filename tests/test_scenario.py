@@ -33,6 +33,20 @@ class ScenarioTestCase(unittest.TestCase):
         with self.assertRaises(ConfigurationError):
             build_scenario(config)
 
+    def test_non_numeric_probability_is_rejected_with_configuration_error(self) -> None:
+        config = load_config("configs/base_scenario.json")
+        config["stages"][0]["reject_probability"] = "oops"
+
+        with self.assertRaises(ConfigurationError):
+            build_scenario(config)
+
+    def test_boolean_numeric_fields_are_rejected(self) -> None:
+        config = load_config("configs/base_scenario.json")
+        config["simulation_duration"] = True
+
+        with self.assertRaises(ConfigurationError):
+            build_scenario(config)
+
     def test_missing_simulation_duration_is_rejected(self) -> None:
         config = load_config("configs/base_scenario.json")
         del config["simulation_duration"]
