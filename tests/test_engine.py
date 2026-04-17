@@ -463,8 +463,9 @@ class EngineTestCase(unittest.TestCase):
 
         self.assertTrue(all(hasattr(event, "payload") for event in result.processed_events))
         self.assertTrue(all(hasattr(record, "result") for record in result.event_log))
-        self.assertTrue(all(hasattr(record, "result") for record in result.events))
-        self.assertEqual(result.processed_events[0].event_type, EventType.BATCH_ARRIVAL)
+        self.assertTrue(all(hasattr(event, "event_type") for event in result.events))
+        self.assertFalse(any(hasattr(event, "result") for event in result.events))
+        self.assertEqual(result.events[0].event_type, EventType.BATCH_ARRIVAL)
 
     def test_machine_can_break_multiple_times_while_resuming_same_batch(self) -> None:
         stage = FakeStage(
@@ -493,6 +494,36 @@ class EngineTestCase(unittest.TestCase):
             [record.result for record in result.event_log].count("machine_broken"),
             2,
         )
+
+    def test_zero_duration_processing_does_not_create_breakdown_loop(self) -> None:
+        stage = FakeStage(
+            stage_id="s1",
+            machines=[
+                FakeMachine(
+                    machine_id="m1",
+                    stage_id="s1",
+                    processing_time=0.0,
+                    breakdown_probability=1.0,
+                    repair_time=0.0,
+                )
+            ],
+        )
+        line = FakeLine(stages={"s1": stage})
+        batch = FakeBatch(batch_id="b1", arrival_time=0.0, route=["s1"])
+
+        result = SimulationEngine(
+            production_line=line,
+            batches=[batch],
+            simulation_duration=1.0,
+            rng=random.Random(1),
+        ).run()
+
+        self.assertEqual(result.batches[0].status, "completed")
+        self.assertEqual(
+            [record.result for record in result.event_log].count("machine_broken"),
+            0,
+        )
+        self.assertLess(len(result.event_log), 10)
 
 
 def make_line() -> FakeLine:

@@ -279,15 +279,27 @@ class ProductionLine:
 
     stages: dict[str, Stage]
     entry_stage_id: str | None = None
+    entry_stage_ids: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Validate production line fields."""
         if not self.stages:
             raise ValueError("production line must contain at least one stage")
-        if self.entry_stage_id is None:
-            self.entry_stage_id = next(iter(self.stages))
         if self.entry_stage_id not in self.stages:
-            raise ValueError(f"Unknown entry_stage_id: {self.entry_stage_id}")
+            if self.entry_stage_id is not None:
+                raise ValueError(f"Unknown entry_stage_id: {self.entry_stage_id}")
+        if not self.entry_stage_ids:
+            self.entry_stage_ids = self._infer_entry_stage_ids()
+        for stage_id in self.entry_stage_ids:
+            if stage_id not in self.stages:
+                raise ValueError(f"Unknown entry_stage_id: {stage_id}")
+        if self.entry_stage_id is None and len(self.entry_stage_ids) == 1:
+            self.entry_stage_id = self.entry_stage_ids[0]
+        if self.entry_stage_id is not None and self.entry_stage_id not in self.entry_stage_ids:
+            self.entry_stage_ids.insert(0, self.entry_stage_id)
+        if self.entry_stage_id is None and not self.entry_stage_ids:
+            self.entry_stage_ids = [next(iter(self.stages))]
+            self.entry_stage_id = self.entry_stage_ids[0]
 
     def get_stage(self, stage_id: str) -> Stage:
         """Return a stage by identifier."""
@@ -306,19 +318,35 @@ class ProductionLine:
 
     def ordered_stage_ids(self) -> list[str]:
         """Return stage identifiers in their configured order."""
-        return self.route_from_entry()
+        ordered: list[str] = []
+        visited: set[str] = set()
+        for entry_stage_id in self.entry_stage_ids:
+            current_stage_id: str | None = entry_stage_id
+            while current_stage_id is not None and current_stage_id not in visited:
+                visited.add(current_stage_id)
+                ordered.append(current_stage_id)
+                current_stage_id = self.get_stage(current_stage_id).next_stage_id
+        for stage_id in self.stages:
+            if stage_id not in visited:
+                ordered.append(stage_id)
+        return ordered
 
     def ordered_stages(self) -> list[Stage]:
         """Return stages in their configured order."""
         return [self.get_stage(stage_id) for stage_id in self.ordered_stage_ids()]
 
-    def route_from_entry(self) -> list[str]:
-        """Return the logical route by following stage links from the entry stage."""
-        if self.entry_stage_id is None:
-            raise ValueError("production line entry_stage_id is not set")
+    def route_from_entry(self, entry_stage_id: str | None = None) -> list[str]:
+        """Return the route by following stage links from one entry stage."""
+        resolved_entry_stage_id = entry_stage_id or self.entry_stage_id
+        if resolved_entry_stage_id is None:
+            if len(self.entry_stage_ids) != 1:
+                raise ValueError(
+                    "production line has multiple entry stages; explicit route is required"
+                )
+            resolved_entry_stage_id = self.entry_stage_ids[0]
 
         route: list[str] = []
-        current_stage_id: str | None = self.entry_stage_id
+        current_stage_id: str | None = resolved_entry_stage_id
         visited: set[str] = set()
         while current_stage_id is not None:
             if current_stage_id in visited:
@@ -329,10 +357,16 @@ class ProductionLine:
             route.append(current_stage_id)
             current_stage_id = self.get_stage(current_stage_id).next_stage_id
 
-        if len(visited) != len(self.stages):
-            missing = sorted(set(self.stages) - visited)
-            raise ValueError(
-                "Production line route does not cover all stages: "
-                + ", ".join(missing)
-            )
         return route
+
+    def _infer_entry_stage_ids(self) -> list[str]:
+        """Infer entry stages from configured stage links."""
+        referenced_stage_ids = {
+            stage.next_stage_id
+            for stage in self.stages.values()
+            if stage.next_stage_id is not None
+        }
+        entry_stage_ids = sorted(
+            stage_id for stage_id in self.stages if stage_id not in referenced_stage_ids
+        )
+        return entry_stage_ids or [next(iter(self.stages))]

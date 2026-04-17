@@ -57,8 +57,8 @@ def validate_config(config: dict[str, Any]) -> None:
         if next_stage_id is not None and next_stage_id not in stage_ids:
             raise ConfigurationError(f"Unknown next_stage_id: {next_stage_id}")
 
-    _validate_line_topology(stages, stage_ids)
-    _validate_batches(config, stages, stage_ids)
+    entry_stage_ids = _validate_line_topology(stages, stage_ids)
+    _validate_batches(config, stages, stage_ids, entry_stage_ids)
 
 
 def _validate_scenario_metadata(config: dict[str, Any]) -> None:
@@ -71,7 +71,7 @@ def _validate_scenario_metadata(config: dict[str, Any]) -> None:
         raise ConfigurationError("simulation_duration is required")
     _validate_non_negative(config, "simulation_duration")
     seed = config.get("seed")
-    if seed is not None and not isinstance(seed, int):
+    if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
         raise ConfigurationError("seed must be an integer or null")
 
 
@@ -79,6 +79,7 @@ def _validate_batches(
     config: dict[str, Any],
     stages: list[dict[str, Any]],
     stage_ids: set[str],
+    entry_stage_ids: list[str],
 ) -> None:
     batches = config.get("batches")
     if not isinstance(batches, dict):
@@ -95,6 +96,10 @@ def _validate_batches(
         if unknown:
             raise ConfigurationError(f"Unknown route stage_id: {unknown[0]}")
         _validate_route_consistency(route, stages)
+    elif len(entry_stage_ids) > 1 and mode != "fixed":
+        raise ConfigurationError(
+            "batches.route is required when the production line has multiple entry stages"
+        )
 
     if mode == "fixed":
         items = batches.get("items")
@@ -138,7 +143,7 @@ def _validate_batches(
         if mean_interval <= 0:
             raise ConfigurationError("mean_interval must be greater than zero")
         seed = batches.get("seed")
-        if seed is not None and not isinstance(seed, int):
+        if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
             raise ConfigurationError("batches.seed must be an integer or null")
 
 
@@ -158,7 +163,7 @@ def _validate_route_consistency(
 def _validate_line_topology(
     stages: list[dict[str, Any]],
     stage_ids: set[str],
-) -> None:
+) -> list[str]:
     stage_map = {str(stage["stage_id"]): stage for stage in stages}
     referenced_stage_ids = {
         str(stage["next_stage_id"])
@@ -166,21 +171,24 @@ def _validate_line_topology(
         if stage.get("next_stage_id") is not None
     }
     entry_stage_ids = sorted(stage_ids - referenced_stage_ids)
-    if len(entry_stage_ids) != 1:
-        raise ConfigurationError(
-            "Production line must define exactly one entry stage"
-        )
+    if not entry_stage_ids:
+        raise ConfigurationError("Production line must define at least one entry stage")
 
     visited: set[str] = set()
-    current_stage_id: str | None = entry_stage_ids[0]
-    while current_stage_id is not None:
-        if current_stage_id in visited:
-            raise ConfigurationError(
-                f"Cycle detected in production line at stage {current_stage_id}"
-            )
-        visited.add(current_stage_id)
-        current_stage = stage_map[current_stage_id]
-        current_stage_id = current_stage.get("next_stage_id")
+    for entry_stage_id in entry_stage_ids:
+        current_stage_id: str | None = entry_stage_id
+        active_chain: set[str] = set()
+        while current_stage_id is not None:
+            if current_stage_id in active_chain:
+                raise ConfigurationError(
+                    f"Cycle detected in production line at stage {current_stage_id}"
+                )
+            if current_stage_id in visited:
+                break
+            active_chain.add(current_stage_id)
+            visited.add(current_stage_id)
+            current_stage = stage_map[current_stage_id]
+            current_stage_id = current_stage.get("next_stage_id")
 
     if visited != stage_ids:
         missing = sorted(stage_ids - visited)
@@ -188,6 +196,7 @@ def _validate_line_topology(
             "Production line contains unreachable or disconnected stages: "
             + ", ".join(missing)
         )
+    return entry_stage_ids
 
 
 def _required_string(data: dict[str, Any], key: str) -> str:

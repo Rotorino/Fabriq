@@ -49,15 +49,22 @@ def build_scenario_config(config: dict[str, Any]) -> ScenarioConfig:
 def build_production_line(config: dict[str, Any]) -> ProductionLine:
     """Build a validated production line from raw config."""
     stages = _build_stages(config["stages"])
+    entry_stage_ids = _resolve_entry_stage_ids(config["stages"])
     return ProductionLine(
         stages=stages,
-        entry_stage_id=_resolve_entry_stage_id(config["stages"]),
+        entry_stage_id=entry_stage_ids[0] if len(entry_stage_ids) == 1 else None,
+        entry_stage_ids=entry_stage_ids,
     )
 
 
 def build_batches(config: dict[str, Any], line: ProductionLine) -> list[Batch]:
     """Build validated batches for the production line."""
-    default_route = list(config["batches"].get("route") or line.route_from_entry())
+    configured_route = config["batches"].get("route")
+    if configured_route is None and len(line.entry_stage_ids) != 1:
+        raise ConfigurationError(
+            "batches.route is required when the production line has multiple entry stages"
+        )
+    default_route = list(configured_route or line.route_from_entry())
     return generate_batches(
         config["batches"],
         default_route,
@@ -106,15 +113,13 @@ def _build_stages(raw_stages: list[dict[str, Any]]) -> dict[str, Stage]:
     return stages
 
 
-def _resolve_entry_stage_id(raw_stages: list[dict[str, Any]]) -> str:
-    """Resolve the first stage of the configured production line."""
+def _resolve_entry_stage_ids(raw_stages: list[dict[str, Any]]) -> list[str]:
+    """Resolve the entry stages of the configured production line."""
     stage_ids = [str(stage["stage_id"]) for stage in raw_stages]
     referenced_stage_ids = {
         str(stage["next_stage_id"])
         for stage in raw_stages
         if stage.get("next_stage_id") is not None
     }
-    for stage_id in stage_ids:
-        if stage_id not in referenced_stage_ids:
-            return stage_id
-    return stage_ids[0]
+    entry_stage_ids = [stage_id for stage_id in stage_ids if stage_id not in referenced_stage_ids]
+    return entry_stage_ids or [stage_ids[0]]

@@ -14,7 +14,8 @@ title: Результат симуляции
 ```python
 @dataclass(slots=True)
 class SimulationResult:
-    events: list[EventLogRecord]
+    events: list[Event]
+    event_log: list[EventLogRecord]
     batches: list[Any]
     stages: list[Any]
     machines: list[Any]
@@ -25,7 +26,24 @@ class SimulationResult:
 
 ## `events`
 
-Список записей журнала. Каждая запись описывает обработанное событие:
+Список сырых событий `Event`, реально обработанных ядром в ходе симуляции.
+Это базовый межмодульный контракт для движка и аналитики.
+
+```python
+@dataclass(slots=True)
+class Event:
+    timestamp: float
+    event_type: EventType
+    batch_id: str | None
+    stage_id: str | None
+    machine_id: str | None
+    payload: dict[str, Any]
+    event_id: str
+```
+
+## `event_log`
+
+Список записей журнала обработки. Каждая запись описывает результат обработки события:
 
 ```python
 @dataclass(slots=True)
@@ -39,7 +57,7 @@ class EventLogRecord:
     details: dict[str, Any]
 ```
 
-Журнал предназначен для модуля аналитики. По нему можно восстановить:
+Журнал предназначен для модуля аналитики и отчетности. По нему можно восстановить:
 
 - когда партия вошла в очередь;
 - когда началась обработка;

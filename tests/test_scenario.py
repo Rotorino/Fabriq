@@ -47,6 +47,13 @@ class ScenarioTestCase(unittest.TestCase):
         with self.assertRaises(ConfigurationError):
             build_scenario(config)
 
+    def test_boolean_seed_is_rejected(self) -> None:
+        config = load_config("configs/base_scenario.json")
+        config["seed"] = True
+
+        with self.assertRaises(ConfigurationError):
+            build_scenario(config)
+
     def test_missing_simulation_duration_is_rejected(self) -> None:
         config = load_config("configs/base_scenario.json")
         del config["simulation_duration"]
@@ -193,12 +200,13 @@ batches:
         with self.assertRaises(ConfigurationError):
             build_scenario(config)
 
-    def test_disconnected_stage_is_rejected(self) -> None:
+    def test_unreachable_cyclic_stage_is_rejected(self) -> None:
         config = load_config("configs/base_scenario.json")
         config["stages"].append(
             {
                 "stage_id": "packaging",
                 "name": "Packaging",
+                "next_stage_id": "packaging",
                 "machines": [
                     {
                         "machine_id": "pkg-1",
@@ -212,6 +220,114 @@ batches:
 
         with self.assertRaises(ConfigurationError):
             build_scenario(config)
+
+    def test_multiple_entry_stages_require_explicit_route(self) -> None:
+        config = {
+            "scenario_name": "multi_entry",
+            "simulation_duration": 10,
+            "stages": [
+                {
+                    "stage_id": "cutting",
+                    "name": "Cutting",
+                    "next_stage_id": "assembly",
+                    "machines": [
+                        {
+                            "machine_id": "cut-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+                {
+                    "stage_id": "painting",
+                    "name": "Painting",
+                    "next_stage_id": "assembly",
+                    "machines": [
+                        {
+                            "machine_id": "paint-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+                {
+                    "stage_id": "assembly",
+                    "name": "Assembly",
+                    "machines": [
+                        {
+                            "machine_id": "asm-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+            ],
+            "batches": {"mode": "equal_intervals", "count": 1, "size": 1},
+        }
+
+        with self.assertRaises(ConfigurationError):
+            build_scenario(config)
+
+    def test_multiple_entry_stages_are_supported_with_explicit_route(self) -> None:
+        config = {
+            "scenario_name": "multi_entry",
+            "simulation_duration": 10,
+            "stages": [
+                {
+                    "stage_id": "cutting",
+                    "name": "Cutting",
+                    "next_stage_id": "assembly",
+                    "machines": [
+                        {
+                            "machine_id": "cut-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+                {
+                    "stage_id": "painting",
+                    "name": "Painting",
+                    "next_stage_id": "assembly",
+                    "machines": [
+                        {
+                            "machine_id": "paint-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+                {
+                    "stage_id": "assembly",
+                    "name": "Assembly",
+                    "machines": [
+                        {
+                            "machine_id": "asm-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+            ],
+            "batches": {
+                "mode": "equal_intervals",
+                "count": 1,
+                "size": 1,
+                "route": ["painting", "assembly"],
+            },
+        }
+
+        scenario = build_scenario(config)
+
+        self.assertEqual(sorted(scenario.production_line.entry_stage_ids), ["cutting", "painting"])
+        self.assertIsNone(scenario.production_line.entry_stage_id)
+        self.assertEqual(scenario.batches[0].route, ["painting", "assembly"])
 
     def test_fixed_batches_require_unique_ids(self) -> None:
         config = load_config("configs/base_scenario.json")

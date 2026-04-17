@@ -206,7 +206,17 @@ class ProcessingStartHandler:
             batch.batch_id,
         )
 
-        if self._should_break(machine):
+        if processing_time <= 0:
+            context.event_queue.push(
+                Event(
+                    timestamp=finish_time,
+                    event_type=EventType.PROCESSING_FINISH,
+                    batch_id=batch.batch_id,
+                    stage_id=stage.stage_id,
+                    machine_id=machine.machine_id,
+                )
+            )
+        elif self._should_break(machine):
             breakdown_time = self._breakdown_time(event.timestamp, processing_time)
             context.event_queue.push(
                 Event(

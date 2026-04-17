@@ -18,21 +18,26 @@ from engine.events import Event, EventType
 from engine.handlers import build_default_handlers
 
 logger = logging.getLogger(__name__)
+MAX_EVENTS_PER_TIMESTAMP = 100_000
 
 
 @dataclass(slots=True)
 class SimulationResult:
     """Raw simulation output intended for analytics and reporting modules."""
 
-    events: list[EventLogRecord]
+    events: list[Event]
     event_log: list[EventLogRecord]
-    processed_events: list[Event]
     batches: list[Batch]
     stages: list[Stage]
     machines: list[Machine]
     simulation_time: float
     scenario_name: str
     raw_data: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def processed_events(self) -> list[Event]:
+        """Backward-compatible alias for raw processed events."""
+        return self.events
 
 
 @dataclass(slots=True)
@@ -102,11 +107,23 @@ class SimulationEngine:
         dispatcher: EventDispatcher,
     ) -> bool:
         stopped_due_to_duration = False
+        last_timestamp: float | None = None
+        same_timestamp_event_count = 0
         while not context.event_queue.is_empty() and not context.stopped:
             if context.event_queue.peek().timestamp > self.simulation_duration:
                 stopped_due_to_duration = True
                 break
             event = context.event_queue.pop()
+            if last_timestamp == event.timestamp:
+                same_timestamp_event_count += 1
+            else:
+                last_timestamp = event.timestamp
+                same_timestamp_event_count = 1
+            if same_timestamp_event_count > MAX_EVENTS_PER_TIMESTAMP:
+                raise RuntimeError(
+                    "Simulation exceeded safe event count without time progress; "
+                    "check for a zero-duration event cycle"
+                )
             context.current_time = event.timestamp
             dispatcher.dispatch(event, context)
         return stopped_due_to_duration
@@ -139,9 +156,8 @@ class SimulationEngine:
         else:
             machines = [machine for stage in stages for machine in getattr(stage, "machines", [])]
         return SimulationResult(
-            events=list(context.event_log),
+            events=list(context.processed_events),
             event_log=list(context.event_log),
-            processed_events=list(context.processed_events),
             batches=list(context.batches.values()),
             stages=stages,
             machines=machines,

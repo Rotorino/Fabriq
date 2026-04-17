@@ -19,12 +19,25 @@ def build_report(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     bottleneck = _detect_bottleneck(analytics)
-    summary = _build_summary(analytics, scenario_description, bottleneck)
+    problem_stages = _collect_problem_stages(analytics)
+    summary = _build_summary(
+        analytics,
+        scenario_description,
+        bottleneck,
+        [str(path) for path in chart_paths or []],
+    )
     report = {
         "scenario_name": result.scenario_name,
         "scenario_description": scenario_description,
+        "run_parameters": {
+            "simulation_time": result.simulation_time,
+            "total_batches": len(result.batches),
+            "stages": len(result.stages),
+            "machines": len(result.machines),
+        },
         "analytics": analytics,
         "bottleneck": bottleneck,
+        "problem_stages": problem_stages,
         "charts": [str(path) for path in chart_paths or []],
     }
     csv_path = export_csv(analytics, output_path / "metrics.csv")
@@ -62,6 +75,7 @@ def _build_summary(
     analytics: dict[str, Any],
     scenario_description: str,
     bottleneck: dict[str, Any],
+    chart_paths: list[str],
 ) -> str:
     general = analytics["general"]
     return "\n".join(
@@ -74,5 +88,20 @@ def _build_summary(
             f"Output units: {general['output_units']}",
             f"Simulation time: {general['simulation_time']}",
             f"Bottleneck stage: {bottleneck['stage_id']}",
+            f"Charts: {', '.join(chart_paths) if chart_paths else 'not generated'}",
         ]
     )
+
+
+def _collect_problem_stages(analytics: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return stages sorted by queue pressure and waiting time."""
+    stages = list(analytics.get("stages", []))
+    stages.sort(
+        key=lambda item: (
+            float(item.get("average_wait_time", 0.0)),
+            int(item.get("max_queue_length", 0)),
+            float(item.get("utilization", 0.0)),
+        ),
+        reverse=True,
+    )
+    return stages[:3]

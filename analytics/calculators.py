@@ -35,6 +35,35 @@ def calculate_analytics(result: Any) -> dict[str, Any]:
     }
 
 
+def compare_analytics_runs(analytics_runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build a compact scenario-comparison table from analytics results."""
+    comparison_rows: list[dict[str, Any]] = []
+    for analytics in analytics_runs:
+        general = analytics["general"]
+        stage_rows = analytics.get("stages", [])
+        machine_rows = analytics.get("machines", [])
+        batch_rows = analytics.get("batches", [])
+        total_batches = max(int(general.get("total_batches", 0)), 1)
+        comparison_rows.append(
+            {
+                "scenario_name": analytics["scenario_name"],
+                "output_units": general.get("output_units", 0),
+                "average_cycle_time": average(
+                    [float(row["cycle_time"]) for row in batch_rows]
+                ),
+                "rejection_rate": float(general.get("rejected_batches", 0))
+                / total_batches,
+                "average_queue_length": average(
+                    [float(row["max_queue_length"]) for row in stage_rows]
+                ),
+                "average_machine_utilization": average(
+                    [float(row["utilization"]) for row in machine_rows]
+                ),
+            }
+        )
+    return comparison_rows
+
+
 def _batch_metrics(result: Any) -> list[dict[str, Any]]:
     processed_events = getattr(result, "processed_events", result.events)
     arrivals = {

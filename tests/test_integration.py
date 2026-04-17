@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from analytics import calculate_analytics
+from analytics import calculate_analytics, compare_analytics_runs
 from engine import SimulationEngine
 from reporting import build_report
 from scenario import build_scenario, load_config
@@ -42,8 +42,12 @@ class IntegrationTestCase(unittest.TestCase):
             self.assertTrue(Path(report["files"]["csv"]).exists())
             self.assertTrue(Path(report["files"]["txt"]).exists())
             self.assertGreater(analytics["general"]["total_batches"], 0)
+            self.assertIn("run_parameters", report)
+            self.assertIn("problem_stages", report)
+            self.assertEqual(len(report["charts"]), 3)
 
     def test_all_required_scenarios_run_without_crashing(self) -> None:
+        analytics_runs = []
         for path in [
             "configs/base_scenario.json",
             "configs/high_load.json",
@@ -58,5 +62,9 @@ class IntegrationTestCase(unittest.TestCase):
                     scenario_name=scenario.scenario_config.name,
                 ).run()
                 analytics = calculate_analytics(result)
+                analytics_runs.append(analytics)
                 self.assertIn("general", analytics)
                 self.assertEqual(result.scenario_name, scenario.scenario_config.name)
+
+        comparison = compare_analytics_runs(analytics_runs)
+        self.assertEqual(len(comparison), 3)
