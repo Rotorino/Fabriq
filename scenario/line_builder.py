@@ -40,7 +40,7 @@ def build_scenario_config(config: dict[str, Any]) -> ScenarioConfig:
     return ScenarioConfig(
         name=str(config.get("scenario_name", "default")),
         description=str(config.get("description", "")),
-        simulation_duration=float(config.get("simulation_duration", 100.0)),
+        simulation_duration=float(config["simulation_duration"]),
         seed=config.get("seed"),
         batch_generation_mode=str(batches.get("mode", "equal_intervals")),
     )

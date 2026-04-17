@@ -39,11 +39,12 @@ def _batch_metrics(result: Any) -> list[dict[str, Any]]:
     arrivals = {
         event.batch_id: event.timestamp
         for event in result.events
-        if event.event_type == "BATCH_ARRIVAL" and event.batch_id
+        if getattr(event.event_type, "value", event.event_type) == "BATCH_ARRIVAL"
+        and event.batch_id
     }
     finishes: dict[str, float] = {}
     waited_batches: set[str] = set()
-    for event in result.events:
+    for event in result.event_log:
         if event.result in {"batch_completed", "batch_rejected"} and event.batch_id:
             finishes[event.batch_id] = event.timestamp
         if event.result in {"queued", "buffered"} and event.batch_id:
@@ -71,8 +72,8 @@ def _stage_metrics(
     machine_metrics: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     queue_lengths = queue_lengths_by_stage(result.raw_data)
-    waits = _stage_wait_times(result.events)
-    processing_times = _stage_processing_times(result.events)
+    waits = _stage_wait_times(result.event_log)
+    processing_times = _stage_processing_times(result.event_log)
     stage_machine_map = {
         machine.machine_id: getattr(machine, "stage_id", "")
         for machine in result.machines
@@ -109,11 +110,15 @@ def _stage_metrics(
                 "max_queue_length": max_queue,
                 "utilization": average(utilization_values),
                 "rejected_batches": _count_events(
-                    result.events,
+                    result.event_log,
                     stage_id,
                     "batch_rejected",
                 ),
-                "breakdowns": _count_events(result.events, stage_id, "machine_broken"),
+                "breakdowns": _count_events(
+                    result.event_log,
+                    stage_id,
+                    "machine_broken",
+                ),
             }
         )
     return metrics

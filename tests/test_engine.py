@@ -86,7 +86,7 @@ class EngineTestCase(unittest.TestCase):
         self.assertEqual(result.batches[0].status, "completed")
         self.assertEqual(result.simulation_time, 20.0)
         self.assertEqual(
-            [record.result for record in result.events].count("batch_completed"),
+            [record.result for record in result.event_log].count("batch_completed"),
             1,
         )
         self.assertTrue(all(machine.status == "idle" for machine in result.machines))
@@ -112,8 +112,8 @@ class EngineTestCase(unittest.TestCase):
 
         self.assertEqual(len(first.events), len(second.events))
         self.assertEqual(
-            [record.result for record in first.events],
-            [record.result for record in second.events],
+            [record.result for record in first.event_log],
+            [record.result for record in second.event_log],
         )
         self.assertEqual([batch.status for batch in batches], ["new", "new"])
         self.assertEqual(
@@ -161,7 +161,7 @@ class EngineTestCase(unittest.TestCase):
 
         arrival_batch_ids = [
             record.batch_id
-            for record in result.events
+            for record in result.event_log
             if record.result == "arrival_registered"
         ]
         self.assertEqual(arrival_batch_ids, ["a1", "b2", "c3"])
@@ -184,10 +184,10 @@ class EngineTestCase(unittest.TestCase):
         ).run()
 
         self.assertEqual(result.batches[0].status, "completed")
-        self.assertEqual(result.events[-1].event_type, EventType.SIMULATION_END.value)
+        self.assertEqual(result.event_log[-1].event_type, EventType.SIMULATION_END.value)
         self.assertIn(
             "processing_finished",
-            [record.result for record in result.events],
+            [record.result for record in result.event_log],
         )
 
     def test_batch_waits_when_machine_is_busy(self) -> None:
@@ -213,7 +213,9 @@ class EngineTestCase(unittest.TestCase):
             ["completed", "completed"],
         )
         processing_starts = [
-            record for record in result.events if record.result == "processing_started"
+            record
+            for record in result.event_log
+            if record.result == "processing_started"
         ]
         self.assertEqual(processing_starts[0].timestamp, 0.0)
         self.assertEqual(processing_starts[1].timestamp, 5.0)
@@ -247,7 +249,7 @@ class EngineTestCase(unittest.TestCase):
             [batch.status for batch in result.batches],
             ["completed", "completed"],
         )
-        self.assertNotIn("queue_full", [record.result for record in result.events])
+        self.assertNotIn("queue_full", [record.result for record in result.event_log])
 
     def test_parallel_machines_start_different_batches(self) -> None:
         stage = FakeStage(
@@ -271,7 +273,9 @@ class EngineTestCase(unittest.TestCase):
         ).run()
 
         processing_starts = [
-            record for record in result.events if record.result == "processing_started"
+            record
+            for record in result.event_log
+            if record.result == "processing_started"
         ]
         self.assertEqual(len(processing_starts), 2)
         self.assertEqual(
@@ -292,7 +296,7 @@ class EngineTestCase(unittest.TestCase):
                     machine_id="m1",
                     stage_id="s1",
                     processing_time=4.0,
-                    breakdown_probability=1.0,
+                    breakdown_probability=0.5,
                     repair_time=3.0,
                 )
             ],
@@ -307,7 +311,7 @@ class EngineTestCase(unittest.TestCase):
             rng=random.Random(1),
         ).run()
 
-        results = [record.result for record in result.events]
+        results = [record.result for record in result.event_log]
         self.assertIn("machine_broken", results)
         self.assertIn("repair_finished", results)
         self.assertEqual(result.batches[0].status, "completed")
@@ -335,7 +339,7 @@ class EngineTestCase(unittest.TestCase):
             rng=random.Random(1),
         ).run()
 
-        results = [record.result for record in result.events]
+        results = [record.result for record in result.event_log]
         self.assertIn("buffered", results)
         self.assertEqual([batch.status for batch in result.batches], ["completed"] * 3)
         self.assertEqual(result.stages[0].queue, [])
@@ -375,7 +379,7 @@ class EngineTestCase(unittest.TestCase):
         self.assertTrue(result.batches[2].is_rejected)
         self.assertIn(
             "buffer_full_marked_for_rejection",
-            [record.result for record in result.events],
+            [record.result for record in result.event_log],
         )
 
     def test_batch_rejection_stops_route(self) -> None:
@@ -398,7 +402,50 @@ class EngineTestCase(unittest.TestCase):
 
         self.assertEqual(result.batches[0].status, "rejected")
         self.assertTrue(result.batches[0].is_rejected)
-        self.assertIn("batch_rejected", [record.result for record in result.events])
+        self.assertIn("batch_rejected", [record.result for record in result.event_log])
+
+    def test_result_keeps_raw_events_and_processed_event_log(self) -> None:
+        line = make_line()
+        batch = FakeBatch(batch_id="b1", arrival_time=0.0, route=["s1"])
+
+        result = SimulationEngine(
+            production_line=line,
+            batches=[batch],
+            simulation_duration=10.0,
+            rng=random.Random(1),
+        ).run()
+
+        self.assertTrue(all(hasattr(event, "payload") for event in result.events))
+        self.assertTrue(all(hasattr(record, "result") for record in result.event_log))
+        self.assertEqual(result.events[0].event_type, EventType.BATCH_ARRIVAL)
+
+    def test_machine_can_break_multiple_times_while_resuming_same_batch(self) -> None:
+        stage = FakeStage(
+            stage_id="s1",
+            machines=[
+                FakeMachine(
+                    machine_id="m1",
+                    stage_id="s1",
+                    processing_time=4.0,
+                    breakdown_probability=1.0,
+                    repair_time=1.0,
+                )
+            ],
+        )
+        line = FakeLine(stages={"s1": stage})
+        batch = FakeBatch(batch_id="b1", arrival_time=0.0, route=["s1"])
+
+        result = SimulationEngine(
+            production_line=line,
+            batches=[batch],
+            simulation_duration=20.0,
+            rng=random.Random(1),
+        ).run()
+
+        self.assertGreaterEqual(
+            [record.result for record in result.event_log].count("machine_broken"),
+            2,
+        )
 
 
 def make_line() -> FakeLine:

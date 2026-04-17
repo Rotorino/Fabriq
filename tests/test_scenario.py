@@ -33,6 +33,13 @@ class ScenarioTestCase(unittest.TestCase):
         with self.assertRaises(ConfigurationError):
             build_scenario(config)
 
+    def test_missing_simulation_duration_is_rejected(self) -> None:
+        config = load_config("configs/base_scenario.json")
+        del config["simulation_duration"]
+
+        with self.assertRaises(ConfigurationError):
+            build_scenario(config)
+
     def test_unknown_route_stage_is_rejected(self) -> None:
         config = load_config("configs/base_scenario.json")
         config["batches"]["route"] = ["missing"]

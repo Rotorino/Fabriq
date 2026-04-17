@@ -31,6 +31,7 @@ class SimulationContext:
     production_line: ProductionLine
     batches: dict[str, Batch]
     current_time: float = 0.0
+    processed_events: list[Event] = field(default_factory=list)
     event_log: list[EventLogRecord] = field(default_factory=list)
     raw_data: dict[str, Any] = field(default_factory=dict)
     stopped: bool = False
@@ -42,6 +43,7 @@ class SimulationContext:
         details: dict[str, Any] | None = None,
     ) -> None:
         """Append an event processing result to the simulation journal."""
+        self.processed_events.append(event)
         self.event_log.append(
             EventLogRecord(
                 timestamp=event.timestamp,

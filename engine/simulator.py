@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 class SimulationResult:
     """Raw simulation output intended for analytics and reporting modules."""
 
-    events: list[EventLogRecord]
+    events: list[Event]
+    event_log: list[EventLogRecord]
     batches: list[Batch]
     stages: list[Stage]
     machines: list[Machine]
@@ -129,7 +130,8 @@ class SimulationEngine:
         else:
             machines = [machine for stage in stages for machine in getattr(stage, "machines", [])]
         return SimulationResult(
-            events=list(context.event_log),
+            events=list(context.processed_events),
+            event_log=list(context.event_log),
             batches=list(context.batches.values()),
             stages=stages,
             machines=machines,

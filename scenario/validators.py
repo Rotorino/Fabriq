@@ -67,6 +67,8 @@ def _validate_scenario_metadata(config: dict[str, Any]) -> None:
         not isinstance(scenario_name, str) or not scenario_name
     ):
         raise ConfigurationError("scenario_name must be a non-empty string")
+    if "simulation_duration" not in config:
+        raise ConfigurationError("simulation_duration is required")
     _validate_non_negative(config, "simulation_duration")
     seed = config.get("seed")
     if seed is not None and not isinstance(seed, int):

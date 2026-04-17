@@ -206,7 +206,7 @@ class ProcessingStartHandler:
             batch.batch_id,
         )
 
-        if not is_resumed and self._should_break(machine):
+        if self._should_break(machine):
             breakdown_time = self._breakdown_time(event.timestamp, processing_time)
             context.event_queue.push(
                 Event(
