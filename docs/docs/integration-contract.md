@@ -45,6 +45,8 @@ is_rejected: bool
 
 `route` содержит список идентификаторов этапов. Если `route` не задан, модуль сценариев заранее выводит его из `entry_stage_id` и цепочки `next_stage_id`, после чего передает в ядро уже явный маршрут.
 
+Если у линии несколько входных этапов, `route` становится обязательным. Ядро не должно угадывать, с какого входа должна стартовать партия.
+
 Рекомендуемая реализация в проекте:
 
 ```python
@@ -149,9 +151,11 @@ class Stage:
 class ProductionLine:
     stages: dict[str, Stage]
     entry_stage_id: str | None
+    entry_stage_ids: list[str]
 ```
 
-`entry_stage_id` вычисляется модулем сценариев при сборке линии и фиксирует логический вход в производственную цепочку.
+`entry_stage_id` вычисляется модулем сценариев при сборке линии и фиксирует логический вход в простой линейной цепочке.
+`entry_stage_ids` содержит все допустимые входные этапы линии и нужен для сценариев с несколькими входами.
 
 ## `ScenarioConfig`
 
@@ -174,6 +178,29 @@ class ScenarioConfig:
 - воспроизводимости через `seed`;
 - передачи описания в `reporting`;
 - сопоставления способа генерации партий в техдокументации и тестах.
+
+## Контракт разработчика 1 -> разработчика 3
+
+`SimulationResult` после сегодняшних правок имеет следующий публичный вид:
+
+```python
+@dataclass(slots=True)
+class SimulationResult:
+    events: list[Event]
+    event_log: list[EventLogRecord]
+    batches: list[Batch]
+    stages: list[Stage]
+    machines: list[Machine]
+    simulation_time: float
+    scenario_name: str
+    raw_data: dict[str, Any]
+```
+
+- `events` - сырые обработанные события движка;
+- `event_log` - журнал результатов обработки, который использует аналитика;
+- `raw_data` - технические ряды по очередям, буферам и активности станков.
+
+Property `processed_events` сохранен только как совместимый alias для уже написанного кода аналитики.
 
 ## Статусы
 
