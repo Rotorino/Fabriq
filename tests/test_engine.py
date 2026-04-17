@@ -125,6 +125,47 @@ class EngineTestCase(unittest.TestCase):
         )
         self.assertEqual(line.stages["s1"].queue, [])
 
+    def test_engine_rejects_duplicate_batch_ids(self) -> None:
+        line = make_line()
+        batches = [
+            FakeBatch(batch_id="dup", arrival_time=0.0, route=["s1"]),
+            FakeBatch(batch_id="dup", arrival_time=1.0, route=["s1"]),
+        ]
+
+        with self.assertRaises(ValueError):
+            SimulationEngine(
+                production_line=line,
+                batches=batches,
+                simulation_duration=10.0,
+                rng=random.Random(1),
+            ).run()
+
+    def test_initial_events_are_sorted_by_arrival_time_then_batch_id(self) -> None:
+        stage = FakeStage(
+            stage_id="s1",
+            machines=[FakeMachine(machine_id="m1", stage_id="s1", processing_time=1.0)],
+        )
+        line = FakeLine(stages={"s1": stage})
+        batches = [
+            FakeBatch(batch_id="b2", arrival_time=0.0, route=["s1"]),
+            FakeBatch(batch_id="a1", arrival_time=0.0, route=["s1"]),
+            FakeBatch(batch_id="c3", arrival_time=2.0, route=["s1"]),
+        ]
+
+        result = SimulationEngine(
+            production_line=line,
+            batches=batches,
+            simulation_duration=10.0,
+            rng=random.Random(1),
+        ).run()
+
+        arrival_batch_ids = [
+            record.batch_id
+            for record in result.events
+            if record.result == "arrival_registered"
+        ]
+        self.assertEqual(arrival_batch_ids, ["a1", "b2", "c3"])
+
     def test_processing_finish_at_simulation_duration_is_processed(self) -> None:
         stage = FakeStage(
             stage_id="s1",

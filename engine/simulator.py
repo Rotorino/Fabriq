@@ -49,7 +49,7 @@ class SimulationEngine:
         if self.simulation_duration < 0:
             raise ValueError("simulation_duration must be non-negative")
         production_line = deepcopy(self.production_line)
-        batches = deepcopy(list(self.batches))
+        batches = self._prepare_batches(self.batches)
         batch_map = {str(batch.batch_id): batch for batch in batches}
         event_queue = EventQueue()
         context = SimulationContext(
@@ -66,6 +66,21 @@ class SimulationEngine:
         result = self._build_result(context)
         logger.info("Simulation finished: %s", self.scenario_name)
         return result
+
+    @staticmethod
+    def _prepare_batches(batches: Iterable[Any]) -> list[Any]:
+        """Clone, validate, and sort batches before scheduling initial events."""
+        prepared_batches = deepcopy(list(batches))
+        seen_batch_ids: set[str] = set()
+        for batch in prepared_batches:
+            batch_id = str(getattr(batch, "batch_id"))
+            if batch_id in seen_batch_ids:
+                raise ValueError(f"Duplicate batch_id in simulation input: {batch_id}")
+            seen_batch_ids.add(batch_id)
+        prepared_batches.sort(
+            key=lambda batch: (float(getattr(batch, "arrival_time")), str(batch.batch_id))
+        )
+        return prepared_batches
 
     def _schedule_initial_events(self, context: SimulationContext) -> None:
         for batch in context.batches.values():
