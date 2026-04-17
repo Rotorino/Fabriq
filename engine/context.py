@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from domain.entities import Batch, ProductionLine
 from engine.event_queue import EventQueue
 from engine.events import Event
 
@@ -27,8 +28,8 @@ class SimulationContext:
     """Mutable runtime state shared by event handlers."""
 
     event_queue: EventQueue
-    production_line: Any
-    batches: dict[str, Any]
+    production_line: ProductionLine
+    batches: dict[str, Batch]
     current_time: float = 0.0
     event_log: list[EventLogRecord] = field(default_factory=list)
     raw_data: dict[str, Any] = field(default_factory=dict)
@@ -52,4 +53,3 @@ class SimulationContext:
                 details=details or {},
             )
         )
-

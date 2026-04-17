@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from domain.entities import Batch, Buffer, Machine, ProductionLine, Stage
 from engine.context import SimulationContext
 from engine.events import Event, EventType
 
@@ -84,7 +85,10 @@ class QueueEnterHandler:
             buffer_capacity = getattr(stage, "buffer_capacity", 0)
             if buffer_capacity is None or len(buffer) < int(buffer_capacity):
                 if batch.batch_id not in buffer:
-                    buffer.append(batch.batch_id)
+                    if hasattr(stage, "buffer_batch"):
+                        stage.buffer_batch(batch.batch_id)
+                    else:
+                        buffer.append(batch.batch_id)
                 set_status(batch, BUFFERED_STATUS)
                 record_buffer_length(
                     context,
@@ -119,10 +123,18 @@ class QueueEnterHandler:
             return
 
         if batch.batch_id not in queue:
-            queue.append(batch.batch_id)
+            if hasattr(stage, "enqueue_batch"):
+                stage.enqueue_batch(batch.batch_id, enforce_capacity=False)
+            else:
+                queue.append(batch.batch_id)
         set_status(batch, WAITING_STATUS)
-        record_queue_length(context, event.timestamp, stage.stage_id, len(queue))
-        context.add_event_log(event, "queued", {"queue_length": len(queue)})
+        queue_length = stage.queue_length() if hasattr(stage, "queue_length") else len(queue)
+        record_queue_length(context, event.timestamp, stage.stage_id, queue_length)
+        context.add_event_log(
+            event,
+            "queued",
+            {"queue_length": queue_length},
+        )
         self.starter.try_start_next(event.timestamp, stage, context)
 
 
@@ -177,11 +189,15 @@ class ProcessingStartHandler:
         )
         finish_time = event.timestamp + processing_time
         set_status(batch, PROCESSING_STATUS)
-        set_status(machine, BUSY_STATUS)
         set_start_scheduled(context, machine, False)
-        setattr(machine, "busy_until", finish_time)
+        if hasattr(machine, "start_processing"):
+            machine.start_processing(batch.batch_id, finish_time)
+        else:
+            set_status(machine, BUSY_STATUS)
+            setattr(machine, "busy_until", finish_time)
         set_current_batch_id(context, machine, batch.batch_id)
-        record_queue_length(context, event.timestamp, stage.stage_id, len(queue))
+        queue_length = stage.queue_length() if hasattr(stage, "queue_length") else len(queue)
+        record_queue_length(context, event.timestamp, stage.stage_id, queue_length)
         record_machine_activity(
             context,
             machine.machine_id,
@@ -256,8 +272,11 @@ class ProcessingFinishHandler:
             context.add_event_log(event, "processing_finish_skipped")
             return
 
-        set_status(machine, IDLE_STATUS)
-        setattr(machine, "busy_until", event.timestamp)
+        if hasattr(machine, "mark_idle"):
+            machine.mark_idle(event.timestamp)
+        else:
+            set_status(machine, IDLE_STATUS)
+            setattr(machine, "busy_until", event.timestamp)
         set_current_batch_id(context, machine, None)
         record_machine_activity(
             context,
@@ -315,13 +334,19 @@ class MoveToNextStageHandler:
         )
 
         if next_stage_id is None:
-            set_status(batch, COMPLETED_STATUS)
+            if hasattr(batch, "mark_completed"):
+                batch.mark_completed()
+            else:
+                set_status(batch, COMPLETED_STATUS)
             context.add_event_log(event, "batch_completed")
             return
 
-        next_stage_index = int(getattr(batch, "current_stage_index", 0)) + 1
-        setattr(batch, "current_stage_index", next_stage_index)
-        set_status(batch, WAITING_STATUS)
+        if hasattr(batch, "move_to_next_stage"):
+            batch.move_to_next_stage()
+        else:
+            next_stage_index = int(getattr(batch, "current_stage_index", 0)) + 1
+            setattr(batch, "current_stage_index", next_stage_index)
+            set_status(batch, WAITING_STATUS)
         context.event_queue.push(
             Event(
                 timestamp=event.timestamp,
@@ -353,9 +378,15 @@ class MachineBreakdownHandler:
         batch_id = get_current_batch_id(context, machine) or event.batch_id
         planned_finish = float(event.payload.get("planned_finish", event.timestamp))
         remaining_time = max(planned_finish - event.timestamp, 0.0)
-        set_status(machine, BROKEN_STATUS)
         repair_time = float(getattr(machine, "repair_time", 0.0))
-        setattr(machine, "busy_until", event.timestamp + repair_time)
+        if hasattr(machine, "mark_broken"):
+            machine.mark_broken(
+                interrupted_batch_id=batch_id,
+                repair_finish_time=event.timestamp + repair_time,
+            )
+        else:
+            set_status(machine, BROKEN_STATUS)
+            setattr(machine, "busy_until", event.timestamp + repair_time)
         set_interrupted_batch_id(context, machine, batch_id)
         if batch_id is not None:
             set_remaining_processing_time(
@@ -401,8 +432,11 @@ class RepairFinishHandler:
         stage = get_stage(context.production_line, event.stage_id)
         machine = get_machine(stage, event.machine_id)
         interrupted_batch_id = get_interrupted_batch_id(context, machine)
-        set_status(machine, IDLE_STATUS)
-        setattr(machine, "busy_until", event.timestamp)
+        if hasattr(machine, "mark_idle"):
+            machine.mark_idle(event.timestamp)
+        else:
+            set_status(machine, IDLE_STATUS)
+            setattr(machine, "busy_until", event.timestamp)
         set_interrupted_batch_id(context, machine, None)
         record_machine_activity(
             context,
@@ -434,8 +468,11 @@ class BatchRejectedHandler:
     def handle(self, event: Event, context: SimulationContext) -> None:
         """Mark a batch as rejected and stop its route."""
         batch = get_batch(context, event.batch_id)
-        setattr(batch, "is_rejected", True)
-        set_status(batch, REJECTED_STATUS)
+        if hasattr(batch, "mark_rejected"):
+            batch.mark_rejected()
+        else:
+            setattr(batch, "is_rejected", True)
+            set_status(batch, REJECTED_STATUS)
         context.add_event_log(event, "batch_rejected")
 
 
@@ -478,7 +515,7 @@ class ProcessingStarter:
             )
 
 
-def get_batch(context: SimulationContext, batch_id: str | None) -> Any:
+def get_batch(context: SimulationContext, batch_id: str | None) -> Batch:
     """Return a batch by identifier."""
     if batch_id is None:
         raise ValueError("Event does not contain batch_id")
@@ -488,10 +525,12 @@ def get_batch(context: SimulationContext, batch_id: str | None) -> Any:
         raise KeyError(f"Unknown batch_id: {batch_id}") from exc
 
 
-def get_stage(production_line: Any, stage_id: str | None) -> Any:
+def get_stage(production_line: ProductionLine | Any, stage_id: str | None) -> Stage | Any:
     """Return a stage by identifier from a line object, dict, or list."""
     if stage_id is None:
         raise ValueError("Event does not contain stage_id")
+    if hasattr(production_line, "get_stage"):
+        return production_line.get_stage(stage_id)
     stages = getattr(production_line, "stages", production_line)
     if isinstance(stages, dict):
         try:
@@ -504,10 +543,12 @@ def get_stage(production_line: Any, stage_id: str | None) -> Any:
     raise KeyError(f"Unknown stage_id: {stage_id}")
 
 
-def get_machine(stage: Any, machine_id: str | None) -> Any:
+def get_machine(stage: Stage | Any, machine_id: str | None) -> Machine | Any:
     """Return a machine by identifier from a stage."""
     if machine_id is None:
         raise ValueError("Event does not contain machine_id")
+    if hasattr(stage, "find_machine"):
+        return stage.find_machine(machine_id)
     for machine in getattr(stage, "machines"):
         if getattr(machine, "machine_id") == machine_id:
             return machine
@@ -546,6 +587,8 @@ def ensure_stage_buffer(context: SimulationContext, stage: Any) -> list[str]:
     """Return the mutable runtime buffer for a stage."""
     if hasattr(stage, "buffer"):
         buffer = getattr(stage, "buffer")
+        if isinstance(buffer, Buffer):
+            return buffer.batch_ids
         if buffer is None:
             buffer = []
             setattr(stage, "buffer", buffer)
@@ -568,9 +611,14 @@ def drain_stage_buffer(
         queue_limit is None
         or count_waiting_batches(context, stage, queue) < int(queue_limit)
     ):
-        batch_id = buffer.pop(0)
+        batch_id = stage.release_buffered_batch() if hasattr(stage, "release_buffered_batch") else buffer.pop(0)
+        if batch_id is None:
+            break
         if batch_id not in queue:
-            queue.append(batch_id)
+            if hasattr(stage, "enqueue_batch"):
+                stage.enqueue_batch(batch_id, enforce_capacity=False)
+            else:
+                queue.append(batch_id)
         set_status(get_batch(context, batch_id), WAITING_STATUS)
         record_queue_length(context, timestamp, stage.stage_id, len(queue))
         record_buffer_length(context, timestamp, stage.stage_id, len(buffer))
@@ -584,7 +632,10 @@ def take_queued_batch(
     """Remove and return a reserved batch from a stage queue."""
     queue = ensure_stage_queue(context, stage)
     if batch_id is not None and batch_id in queue:
-        queue.remove(batch_id)
+        if hasattr(stage, "remove_from_queue"):
+            stage.remove_from_queue(batch_id)
+        else:
+            queue.remove(batch_id)
         set_batch_start_scheduled(context, stage.stage_id, batch_id, False)
         return batch_id
     if batch_id is not None:
@@ -624,6 +675,8 @@ def count_waiting_batches(
 
 def resolve_current_stage_id(batch: Any, production_line: Any) -> str:
     """Resolve the batch's current route stage."""
+    if hasattr(batch, "get_current_stage_id"):
+        return str(batch.get_current_stage_id())
     route = getattr(batch, "route", None)
     current_stage_index = int(getattr(batch, "current_stage_index", 0))
     if route:
@@ -640,6 +693,8 @@ def resolve_next_stage_id(
     production_line: Any,
 ) -> str | None:
     """Resolve the next route stage for a processed batch."""
+    if hasattr(batch, "get_next_stage_id"):
+        return batch.get_next_stage_id()
     route = getattr(batch, "route", None)
     current_stage_index = int(getattr(batch, "current_stage_index", 0))
     if route:

@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
+from domain.entities import Batch, Machine, ProductionLine, Stage
+
 from engine.context import EventLogRecord, SimulationContext
 from engine.dispatcher import EventDispatcher
 from engine.event_queue import EventQueue
@@ -23,9 +25,9 @@ class SimulationResult:
     """Raw simulation output intended for analytics and reporting modules."""
 
     events: list[EventLogRecord]
-    batches: list[Any]
-    stages: list[Any]
-    machines: list[Any]
+    batches: list[Batch]
+    stages: list[Stage]
+    machines: list[Machine]
     simulation_time: float
     scenario_name: str
     raw_data: dict[str, Any] = field(default_factory=dict)
@@ -35,8 +37,8 @@ class SimulationResult:
 class SimulationEngine:
     """Runs a discrete-event production process simulation."""
 
-    production_line: Any
-    batches: Iterable[Any]
+    production_line: ProductionLine
+    batches: Iterable[Batch]
     simulation_duration: float
     scenario_name: str = "default"
     dispatcher: EventDispatcher | None = None
@@ -68,7 +70,7 @@ class SimulationEngine:
         return result
 
     @staticmethod
-    def _prepare_batches(batches: Iterable[Any]) -> list[Any]:
+    def _prepare_batches(batches: Iterable[Batch]) -> list[Batch]:
         """Clone, validate, and sort batches before scheduling initial events."""
         prepared_batches = deepcopy(list(batches))
         seen_batch_ids: set[str] = set()
@@ -122,9 +124,10 @@ class SimulationEngine:
 
     def _build_result(self, context: SimulationContext) -> SimulationResult:
         stages = list_stages(context.production_line)
-        machines = [
-            machine for stage in stages for machine in getattr(stage, "machines", [])
-        ]
+        if hasattr(context.production_line, "all_machines"):
+            machines = context.production_line.all_machines()
+        else:
+            machines = [machine for stage in stages for machine in getattr(stage, "machines", [])]
         return SimulationResult(
             events=list(context.event_log),
             batches=list(context.batches.values()),
@@ -140,8 +143,10 @@ class SimulationEngine:
         )
 
 
-def list_stages(production_line: Any) -> list[Any]:
+def list_stages(production_line: ProductionLine | Any) -> list[Stage | Any]:
     """Return production line stages as a list."""
+    if hasattr(production_line, "ordered_stages"):
+        return production_line.ordered_stages()
     stages = getattr(production_line, "stages", production_line)
     if isinstance(stages, dict):
         return list(stages.values())
