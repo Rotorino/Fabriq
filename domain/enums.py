@@ -22,3 +22,17 @@ class MachineStatus(str, Enum):
     IDLE = "idle"
     BUSY = "busy"
     BROKEN = "broken"
+
+
+class StageType(str, Enum):
+    """Supported stage classifications for the production line."""
+
+    PROCESSING = "processing"
+    INSPECTION = "inspection"
+    BUFFER = "buffer"
+
+
+class RoutingStrategy(str, Enum):
+    """Supported routing strategies for batch movement between stages."""
+
+    SEQUENTIAL = "sequential"

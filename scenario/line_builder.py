@@ -6,7 +6,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from domain.entities import Batch, Machine, ProductionLine, Stage
+from domain.enums import RoutingStrategy, StageType
 from domain.models import ScenarioConfig
+from scenario.config_loader import ConfigurationError
 from scenario.generators import generate_batches
 from scenario.validators import validate_config
 
@@ -23,19 +25,48 @@ class ScenarioInput:
 def build_scenario(config: dict[str, Any]) -> ScenarioInput:
     """Build a validated production line, batches, and scenario metadata."""
     validate_config(config)
-    stages = _build_stages(config["stages"])
-    line = ProductionLine(stages=stages)
-    scenario = ScenarioConfig(
+    try:
+        line = build_production_line(config)
+        scenario = build_scenario_config(config)
+        batches = build_batches(config, line)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ConfigurationError(f"Failed to build scenario objects: {exc}") from exc
+    return ScenarioInput(line, batches, scenario)
+
+
+def build_scenario_config(config: dict[str, Any]) -> ScenarioConfig:
+    """Build validated scenario metadata."""
+    batches = config.get("batches", {})
+    return ScenarioConfig(
         name=str(config.get("scenario_name", "default")),
         description=str(config.get("description", "")),
         simulation_duration=float(config.get("simulation_duration", 100.0)),
         seed=config.get("seed"),
+        batch_generation_mode=str(batches.get("mode", "equal_intervals")),
     )
-    batches = generate_batches(config["batches"], list(stages.keys()))
-    return ScenarioInput(line, batches, scenario)
+
+
+def build_production_line(config: dict[str, Any]) -> ProductionLine:
+    """Build a validated production line from raw config."""
+    stages = _build_stages(config["stages"])
+    return ProductionLine(
+        stages=stages,
+        entry_stage_id=_resolve_entry_stage_id(config["stages"]),
+    )
+
+
+def build_batches(config: dict[str, Any], line: ProductionLine) -> list[Batch]:
+    """Build validated batches for the production line."""
+    default_route = list(config["batches"].get("route") or line.route_from_entry())
+    return generate_batches(
+        config["batches"],
+        default_route,
+        seed=config.get("seed"),
+    )
 
 
 def _build_stages(raw_stages: list[dict[str, Any]]) -> dict[str, Stage]:
+    """Build stage entities with nested machines."""
     stages: dict[str, Stage] = {}
     for raw_stage in raw_stages:
         stage_id = str(raw_stage["stage_id"])
@@ -59,5 +90,30 @@ def _build_stages(raw_stages: list[dict[str, Any]]) -> dict[str, Stage]:
             reject_probability=float(raw_stage.get("reject_probability", 0.0)),
             buffer_capacity=raw_stage.get("buffer_capacity", 0),
             next_stage_id=raw_stage.get("next_stage_id"),
+            stage_type=StageType(
+                str(raw_stage.get("stage_type", StageType.PROCESSING.value))
+            ),
+            routing_strategy=RoutingStrategy(
+                str(
+                    raw_stage.get(
+                        "routing_strategy",
+                        RoutingStrategy.SEQUENTIAL.value,
+                    )
+                )
+            ),
         )
     return stages
+
+
+def _resolve_entry_stage_id(raw_stages: list[dict[str, Any]]) -> str:
+    """Resolve the first stage of the configured production line."""
+    stage_ids = [str(stage["stage_id"]) for stage in raw_stages]
+    referenced_stage_ids = {
+        str(stage["next_stage_id"])
+        for stage in raw_stages
+        if stage.get("next_stage_id") is not None
+    }
+    for stage_id in stage_ids:
+        if stage_id not in referenced_stage_ids:
+            return stage_id
+    return stage_ids[0]

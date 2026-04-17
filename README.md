@@ -1,9 +1,9 @@
 # Fabriq
 
 Fabriq is a modular Python application for discrete-event simulation of a
-production line. It loads a JSON scenario, builds a validated production model,
-runs the simulation engine, calculates metrics, exports reports, and writes SVG
-charts.
+production line. It loads a JSON or YAML scenario, builds a validated
+production model, runs the simulation engine, calculates metrics, exports
+reports, and writes SVG charts.
 
 ## Run
 

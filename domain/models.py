@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass(slots=True)
@@ -13,6 +14,15 @@ class ScenarioConfig:
     description: str
     simulation_duration: float
     seed: int | None = None
+    batch_generation_mode: str = "equal_intervals"
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Validate scenario metadata."""
+        if not self.name:
+            raise ValueError("scenario name must not be empty")
+        if self.simulation_duration < 0:
+            raise ValueError("simulation_duration must be non-negative")
 
 
 @dataclass(slots=True)

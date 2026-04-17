@@ -51,7 +51,11 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run production process simulation scenario."
     )
-    parser.add_argument("--config", required=True, help="Path to JSON config")
+    parser.add_argument(
+        "--config",
+        required=True,
+        help="Path to JSON or YAML config",
+    )
     parser.add_argument("--results-dir", default="results", help="Output directory")
     parser.add_argument("--seed", type=int, default=None, help="Random seed override")
     return parser.parse_args()
