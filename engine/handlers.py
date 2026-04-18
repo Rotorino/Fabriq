@@ -38,7 +38,7 @@ def build_default_handlers(rng: random.Random | None = None) -> dict[EventType, 
             starter=starter,
         ),
         EventType.MOVE_TO_NEXT_STAGE: MoveToNextStageHandler(starter=starter),
-        EventType.MACHINE_BREAKDOWN: MachineBreakdownHandler(),
+        EventType.MACHINE_BREAKDOWN: MachineBreakdownHandler(starter=starter),
         EventType.REPAIR_FINISH: RepairFinishHandler(starter=starter),
         EventType.BATCH_REJECTED: BatchRejectedHandler(),
         EventType.SIMULATION_END: SimulationEndHandler(),
@@ -397,6 +397,8 @@ class MoveToNextStageHandler:
 class MachineBreakdownHandler:
     """Handles machine breakdowns."""
 
+    starter: "ProcessingStarter"
+
     def handle(self, event: Event, context: SimulationContext) -> None:
         """Mark the machine as broken and schedule repair completion."""
         stage = get_stage(context.production_line, event.stage_id)
@@ -426,7 +428,12 @@ class MachineBreakdownHandler:
                 batch_id,
                 remaining_time,
             )
-            set_status(get_batch(context, batch_id), WAITING_STATUS)
+            batch = get_batch(context, batch_id)
+            queue = ensure_stage_queue(context, stage)
+            set_status(batch, WAITING_STATUS)
+            if batch_id not in queue:
+                queue.insert(0, batch_id)
+                record_queue_length(context, event.timestamp, stage.stage_id, len(queue))
         set_current_batch_id(context, machine, None)
         repair_finish = event.timestamp + repair_time
         record_machine_activity(
@@ -450,6 +457,7 @@ class MachineBreakdownHandler:
             "machine_broken",
             {"repair_finish": repair_finish, "remaining_time": remaining_time},
         )
+        self.starter.try_start_next(event.timestamp, stage, context)
 
 
 @dataclass(slots=True)
@@ -459,7 +467,7 @@ class RepairFinishHandler:
     starter: "ProcessingStarter"
 
     def handle(self, event: Event, context: SimulationContext) -> None:
-        """Return the machine to service and requeue interrupted work."""
+        """Return the machine to service and resume waiting stage work."""
         stage = get_stage(context.production_line, event.stage_id)
         machine = get_machine(stage, event.machine_id)
         interrupted_batch_id = get_interrupted_batch_id(context, machine)
@@ -477,17 +485,10 @@ class RepairFinishHandler:
             interrupted_batch_id,
         )
 
-        if interrupted_batch_id:
-            queue = ensure_stage_queue(context, stage)
-            if interrupted_batch_id not in queue:
-                queue.insert(0, interrupted_batch_id)
-            set_status(get_batch(context, interrupted_batch_id), WAITING_STATUS)
-            record_queue_length(context, event.timestamp, stage.stage_id, len(queue))
-
         context.add_event_log(
             event,
             "repair_finished",
-            {"requeued_batch_id": interrupted_batch_id},
+            {"interrupted_batch_id": interrupted_batch_id},
         )
         self.starter.try_start_next(event.timestamp, stage, context)
 

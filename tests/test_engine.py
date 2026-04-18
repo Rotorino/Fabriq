@@ -391,6 +391,64 @@ class EngineTestCase(unittest.TestCase):
         self.assertEqual(result.machines[0].status, "idle")
         self.assertIsNone(result.machines[0].interrupted_batch_id)
 
+    def test_interrupted_batch_can_resume_on_another_machine_before_repair_finishes(self) -> None:
+        stage = FakeStage(
+            stage_id="s1",
+            machines=[
+                FakeMachine(
+                    machine_id="m1",
+                    stage_id="s1",
+                    processing_time=4.0,
+                    breakdown_probability=1.0,
+                    repair_time=5.0,
+                ),
+                FakeMachine(
+                    machine_id="m2",
+                    stage_id="s1",
+                    processing_time=4.0,
+                    breakdown_probability=0.0,
+                    repair_time=0.0,
+                ),
+            ],
+        )
+        line = FakeLine(stages={"s1": stage})
+        batch = FakeBatch(batch_id="b1", arrival_time=0.0, route=["s1"])
+
+        result = SimulationEngine(
+            production_line=line,
+            batches=[batch],
+            simulation_duration=10.0,
+            rng=random.Random(1),
+        ).run()
+
+        processing_starts = [
+            record
+            for record in result.event_log
+            if record.result == "processing_started"
+        ]
+        self.assertEqual(result.batches[0].status, "completed")
+        self.assertEqual(result.simulation_time, 7.0)
+        self.assertEqual(
+            [(record.timestamp, record.machine_id) for record in processing_starts],
+            [(0.0, "m1"), (2.0, "m2")],
+        )
+        self.assertEqual(
+            [record.result for record in result.event_log].count("batch_completed"),
+            1,
+        )
+        self.assertLess(
+            next(
+                record.timestamp
+                for record in result.event_log
+                if record.result == "batch_completed"
+            ),
+            next(
+                record.timestamp
+                for record in result.event_log
+                if record.result == "repair_finished"
+            ),
+        )
+
     def test_full_queue_sends_batch_to_buffer_then_processes_it(self) -> None:
         stage = FakeStage(
             stage_id="s1",
