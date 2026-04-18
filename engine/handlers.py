@@ -9,19 +9,20 @@ from enum import Enum
 from typing import Any
 
 from domain.entities import Batch, Buffer, Machine, ProductionLine, Stage
+from domain.enums import BatchStatus, MachineStatus
 from engine.context import SimulationContext
 from engine.events import Event, EventType
 
 logger = logging.getLogger(__name__)
 
-IDLE_STATUS = "idle"
-BUSY_STATUS = "busy"
-BROKEN_STATUS = "broken"
-WAITING_STATUS = "waiting"
-PROCESSING_STATUS = "processing"
-COMPLETED_STATUS = "completed"
-REJECTED_STATUS = "rejected"
-BUFFERED_STATUS = "buffered"
+IDLE_STATUS = MachineStatus.IDLE.value
+BUSY_STATUS = MachineStatus.BUSY.value
+BROKEN_STATUS = MachineStatus.BROKEN.value
+WAITING_STATUS = BatchStatus.WAITING.value
+PROCESSING_STATUS = BatchStatus.PROCESSING.value
+COMPLETED_STATUS = BatchStatus.COMPLETED.value
+REJECTED_STATUS = BatchStatus.REJECTED.value
+BUFFERED_STATUS = BatchStatus.BUFFERED.value
 
 
 def build_default_handlers(rng: random.Random | None = None) -> dict[EventType, Any]:
