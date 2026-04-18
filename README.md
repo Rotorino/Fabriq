@@ -5,6 +5,25 @@ production line. It loads a JSON or YAML scenario, builds a validated
 production model, runs the simulation engine, calculates metrics, exports
 reports, and writes SVG charts.
 
+## Architecture
+
+Project modules:
+
+- `domain/`: shared entities, enums, and DTOs
+- `scenario/`: config loading, validation, and scenario building
+- `engine/`: discrete-event simulation core
+- `analytics/`: metrics and comparison logic
+- `reporting/`: JSON/CSV/TXT report export
+- `visualization/`: SVG chart generation
+- `app/`: CLI entrypoint
+
+Detailed docs are in `docs/docs/`:
+
+- `architecture.md`: engine structure and runtime rules
+- `event-flow.md`: event lifecycle and stop conditions
+- `scenario-module.md`: config format, validation, and scenario builder
+- `integration-contract.md`: public DTO and module contracts
+
 ## Run
 
 ```bash
@@ -45,6 +64,13 @@ The repository includes three required scenarios:
 - `configs/base_scenario.json`
 - `configs/high_load.json`
 - `configs/frequent_breakdowns.json`
+
+Configuration rules to keep in mind:
+
+- JSON is required; YAML works when `PyYAML` is installed.
+- `batches.route` is mandatory when the line has multiple entry stages.
+- `queue_limit` and `buffer_capacity` must be non-negative integers or `null`.
+- probabilities such as `breakdown_probability` and `reject_probability` must be in `[0.0, 1.0]`.
 
 ## Tests
 

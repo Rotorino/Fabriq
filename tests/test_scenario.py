@@ -25,6 +25,13 @@ class ScenarioTestCase(unittest.TestCase):
             scenario.scenario_config.batch_generation_mode,
             "equal_intervals",
         )
+        self.assertEqual(scenario.scenario_config.metadata["stage_count"], 3)
+        self.assertEqual(scenario.scenario_config.metadata["machine_count"], 3)
+        self.assertEqual(
+            scenario.scenario_config.metadata["entry_stage_ids"],
+            ["cutting"],
+        )
+        self.assertIn("mode", scenario.scenario_config.metadata["batch_config"])
 
     def test_invalid_probability_is_rejected(self) -> None:
         config = load_config("configs/base_scenario.json")

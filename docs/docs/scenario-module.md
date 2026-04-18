@@ -5,7 +5,7 @@ title: Модуль сценариев
 
 # Модуль сценариев
 
-Модуль `scenario` реализует зону ответственности разработчика 2: предметную модель входных данных, загрузку конфигураций, валидацию, генерацию партий и сборку готового объекта сценария для передачи в ядро моделирования.
+Модуль `scenario` реализует зону ответственности Матвея Струцкого: предметную модель входных данных, загрузку конфигураций, валидацию, генерацию партий и сборку готового объекта сценария для передачи в ядро моделирования.
 
 Текущая реализация находится в пакетах `domain` и `scenario`:
 
@@ -24,7 +24,7 @@ scenario/
 
 ## 6.1. Роль
 
-Разработчик 2 отвечает за формальный вход в систему. Его код должен принять конфигурацию, отбраковать невалидные данные до старта симуляции, построить согласованные доменные объекты и подготовить партии для ядра.
+Матвей Струцкий отвечает за вход в систему. Его код должен принять конфигурацию, отбраковать невалидные данные до старта симуляции, построить согласованные доменные объекты и подготовить партии для ядра.
 
 ## 6.2. Цель части
 
@@ -185,6 +185,13 @@ scenario/
 - имя сценария не пустое;
 - `simulation_duration >= 0`.
 
+`metadata` в текущей реализации заполняется автоматически и содержит:
+
+- `entry_stage_ids` - список входных этапов линии;
+- `stage_count` - число этапов;
+- `machine_count` - число станков;
+- `batch_config` - копию блока `batches` из входного конфига.
+
 ### 2. Enum и статусы
 
 Реализованы в `domain/enums.py`.
@@ -250,6 +257,85 @@ sequential
 - ошибки формулируются через `ConfigurationError`;
 - неподдерживаемый формат, пустой файл, неверный JSON и неверный YAML дают понятные сообщения.
 
+## Спецификация входного конфига
+
+### Верхний уровень
+
+Обязательные поля:
+
+- `simulation_duration: int | float`;
+- `stages: list[object]`;
+- `batches: object`.
+
+Необязательные поля:
+
+- `scenario_name: str`;
+- `description: str`;
+- `seed: int | null`.
+
+Минимальный пример:
+
+```json
+{
+  "scenario_name": "base_scenario",
+  "description": "Base production line run",
+  "simulation_duration": 40,
+  "seed": 42,
+  "stages": [
+    {
+      "stage_id": "cutting",
+      "name": "Cutting",
+      "machines": [
+        {
+          "machine_id": "cut-1",
+          "processing_time": 1.0
+        }
+      ]
+    }
+  ],
+  "batches": {
+    "mode": "fixed",
+    "items": [
+      {
+        "batch_id": "batch-1",
+        "arrival_time": 0.0,
+        "size": 1,
+        "route": ["cutting"]
+      }
+    ]
+  }
+}
+```
+
+### `stages[]`
+
+Обязательные поля этапа:
+
+- `stage_id: str`;
+- `name: str`;
+- `machines: list[object]`.
+
+Необязательные поля этапа:
+
+- `queue_limit: int | null`;
+- `buffer_capacity: int | null`;
+- `reject_probability: int | float`;
+- `next_stage_id: str | null`;
+- `stage_type: str`;
+- `routing_strategy: str`.
+
+### `machines[]`
+
+Обязательные поля станка:
+
+- `machine_id: str`;
+- `processing_time: int | float`.
+
+Необязательные поля станка:
+
+- `breakdown_probability: int | float`;
+- `repair_time: int | float`.
+
 ### 4. Валидатор конфигурации
 
 Реализован в `scenario/validators.py`.
@@ -311,9 +397,72 @@ sequential
 - дефолтный маршрут берется либо из `batches.route`, либо из маршрута единственного входного этапа в `ProductionLine`;
 - при нескольких входных этапах неявный маршрут запрещен.
 
+#### `fixed`
+
+Минимальный пример:
+
+```json
+{
+  "mode": "fixed",
+  "items": [
+    {
+      "batch_id": "batch-1",
+      "arrival_time": 0.0,
+      "size": 1,
+      "route": ["cutting", "assembly", "quality"]
+    }
+  ]
+}
+```
+
+#### `template`
+
+Минимальный пример:
+
+```json
+{
+  "mode": "template",
+  "count": 3,
+  "size": 2,
+  "arrival_interval": 1.0,
+  "route": ["cutting", "assembly", "quality"]
+}
+```
+
+#### `equal_intervals`
+
+Минимальный пример:
+
+```json
+{
+  "mode": "equal_intervals",
+  "count": 3,
+  "size": 2,
+  "arrival_interval": 1.0,
+  "start_time": 0.0,
+  "route": ["cutting", "assembly", "quality"]
+}
+```
+
+#### `random_intervals`
+
+Минимальный пример:
+
+```json
+{
+  "mode": "random_intervals",
+  "count": 3,
+  "size": 2,
+  "mean_interval": 1.5,
+  "start_time": 0.0,
+  "seed": 42,
+  "route": ["cutting", "assembly", "quality"]
+}
+```
+
 ### 6. Сценарии моделирования
 
-В проекте присутствуют три обязательных сценария из ТЗ:
+В проекте есть три основных сценария, которые нужны для проверки работы приложения:
 
 - `configs/base_scenario.json`;
 - `configs/high_load.json`;
@@ -366,6 +515,15 @@ Builder:
 - собирает `ScenarioConfig`;
 - генерирует список партий;
 - возвращает готовый объект для `SimulationEngine`.
+
+## Типовые ограничения и ошибки конфигурации
+
+- При нескольких входных этапах `batches.route` обязателен, иначе будет ошибка `batches.route is required when the production line has multiple entry stages`.
+- `next_stage_id` может ссылаться только на существующий этап, иначе будет ошибка `Unknown next_stage_id: <id>`.
+- Циклы и недостижимые этапы запрещены, например `Cycle detected in production line at stage <id>` или `Production line contains unreachable or disconnected stages: ...`.
+- `seed` и `batches.seed` должны быть `int` или `null`, иначе валидатор выбрасывает `seed must be an integer or null` или `batches.seed must be an integer or null`.
+- `queue_limit` и `buffer_capacity` должны быть целыми неотрицательными значениями или `null`.
+- `breakdown_probability` и `reject_probability` должны лежать в диапазоне `[0.0, 1.0]`.
 
 ## 6.4. Что не входит в зону ответственности
 
@@ -422,7 +580,7 @@ scenario = build_scenario(config)
 
 ## 6.9. Обязательные тесты
 
-Покрытие разработчика 2 находится в `tests/test_scenario.py`.
+Покрытие Матвея Струцкого находится в `tests/test_scenario.py`.
 
 Проверяются:
 
@@ -446,7 +604,7 @@ scenario = build_scenario(config)
 - воспроизводимость сценариев;
 - тестируемый builder-пайплайн.
 
-## Проверка соответствия ТЗ разработчика 2
+## Проверка выполненных задач Матвея Струцкого
 
 ### Полностью реализовано
 
@@ -467,13 +625,13 @@ scenario = build_scenario(config)
 
 ### Реализовано с уточнением
 
-- ТЗ говорит, что загрузчик должен выполнять построение объектов. В проекте это разделено на два слоя:
+- По задачам загрузчик должен выполнять построение объектов. В проекте это разделено на два слоя:
   - `config_loader.py` отвечает за чтение и парсинг;
   - `line_builder.py` отвечает за построение доменных объектов.
 
 Такое разделение сделано намеренно и соответствует модульной архитектуре проекта.
 
-### Не относится к зоне разработчика 2
+### Не относится к зоне Матвея Струцкого
 
 - цикл моделирования;
 - обработка событий;

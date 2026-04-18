@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
@@ -37,12 +38,23 @@ def build_scenario(config: dict[str, Any]) -> ScenarioInput:
 def build_scenario_config(config: dict[str, Any]) -> ScenarioConfig:
     """Build validated scenario metadata."""
     batches = config.get("batches", {})
+    stages = config.get("stages", [])
     return ScenarioConfig(
         name=str(config.get("scenario_name", "default")),
         description=str(config.get("description", "")),
         simulation_duration=float(config["simulation_duration"]),
         seed=config.get("seed"),
         batch_generation_mode=str(batches.get("mode", "equal_intervals")),
+        metadata={
+            "entry_stage_ids": _resolve_entry_stage_ids(stages),
+            "stage_count": len(stages),
+            "machine_count": sum(
+                len(stage.get("machines", []))
+                for stage in stages
+                if isinstance(stage, dict)
+            ),
+            "batch_config": deepcopy(batches),
+        },
     )
 
 
