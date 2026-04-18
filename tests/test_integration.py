@@ -37,14 +37,17 @@ class IntegrationTestCase(unittest.TestCase):
                 chart_paths=chart_paths,
             )
 
-            self.assertEqual(len(chart_paths), 3)
+            self.assertEqual(len(chart_paths), 7)
             self.assertTrue(Path(report["files"]["json"]).exists())
             self.assertTrue(Path(report["files"]["csv"]).exists())
             self.assertTrue(Path(report["files"]["txt"]).exists())
+            self.assertTrue(Path(report["files"]["md"]).exists())
             self.assertGreater(analytics["general"]["total_batches"], 0)
             self.assertIn("run_parameters", report)
             self.assertIn("problem_stages", report)
-            self.assertEqual(len(report["charts"]), 3)
+            self.assertIn("average_cycle_time", analytics["general"])
+            self.assertIn("average_queue_length", analytics["stages"][0])
+            self.assertEqual(len(report["charts"]), 7)
 
     def test_all_required_scenarios_run_without_crashing(self) -> None:
         analytics_runs = []

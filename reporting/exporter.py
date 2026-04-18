@@ -4,22 +4,23 @@ from __future__ import annotations
 
 import csv
 import json
+from dataclasses import is_dataclass
 from pathlib import Path
 from typing import Any
 
 
-def export_json(report: dict[str, Any], path: str | Path) -> Path:
+def export_json(report: Any, path: str | Path) -> Path:
     """Export the full report to a JSON file."""
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
-        json.dumps(report, ensure_ascii=False, indent=2),
+        json.dumps(_serialize(report), ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     return output_path
 
 
-def export_csv(analytics: dict[str, Any], path: str | Path) -> Path:
+def export_csv(analytics: Any, path: str | Path) -> Path:
     """Export metric tables to one CSV file."""
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -36,6 +37,14 @@ def export_csv(analytics: dict[str, Any], path: str | Path) -> Path:
 
 def export_text(summary: str, path: str | Path) -> Path:
     """Export a human-readable summary to a text file."""
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(summary, encoding="utf-8")
+    return output_path
+
+
+def export_markdown(summary: str, path: str | Path) -> Path:
+    """Export a human-readable summary to a Markdown file."""
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(summary, encoding="utf-8")
@@ -62,7 +71,7 @@ def export_rows_csv(rows: list[dict[str, Any]], path: str | Path) -> Path:
 def _write_metric_rows(
     writer: csv.DictWriter[str],
     section: str,
-    rows: list[dict[str, Any]],
+    rows: list[Any],
 ) -> None:
     for index, row in enumerate(rows, start=1):
         row_id = row.get(f"{section}_id", row.get("batch_id", index))
@@ -74,3 +83,21 @@ def _write_metric_rows(
                     "value": value,
                 }
             )
+
+
+def _serialize(value: Any) -> Any:
+    """Convert report DTOs into JSON-serializable structures."""
+    if hasattr(value, "to_dict"):
+        return value.to_dict()
+    if is_dataclass(value):
+        return {
+            key: _serialize(item)
+            for key, item in value.__dict__.items()
+        }
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, list):
+        return [_serialize(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _serialize(item) for key, item in value.items()}
+    return value

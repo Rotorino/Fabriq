@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +14,7 @@ def build_timeline(events: list[Any], output_path: str | Path) -> Path:
     lines = []
     for index, event in enumerate(events[:25]):
         y = 30 + index * 22
-        text = f"{event.timestamp:.2f}: {event.event_type} {event.result}"
+        text = escape(f"{event.timestamp:.2f}: {event.event_type} {event.result}")
         lines.append(f"<text x='20' y='{y}' font-size='12'>{text}</text>")
     height = max(80, 50 + len(lines) * 22)
     svg = (
