@@ -77,6 +77,26 @@ class QueueEnterHandler:
         batch = get_batch(context, event.batch_id)
         queue = ensure_stage_queue(context, stage)
         queue_limit = getattr(stage, "queue_limit", None)
+        available_machine = find_available_machine(stage, context)
+
+        if available_machine is not None and not queue:
+            if batch.batch_id not in queue:
+                if hasattr(stage, "enqueue_batch"):
+                    stage.enqueue_batch(batch.batch_id, enforce_capacity=False)
+                else:
+                    queue.append(batch.batch_id)
+            set_status(batch, WAITING_STATUS)
+            queue_length = (
+                stage.queue_length() if hasattr(stage, "queue_length") else len(queue)
+            )
+            record_queue_length(context, event.timestamp, stage.stage_id, queue_length)
+            context.add_event_log(
+                event,
+                "queued",
+                {"queue_length": queue_length},
+            )
+            self.starter.try_start_next(event.timestamp, stage, context)
+            return
 
         if (
             queue_limit is not None

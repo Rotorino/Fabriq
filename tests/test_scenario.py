@@ -93,6 +93,13 @@ class ScenarioTestCase(unittest.TestCase):
         with self.assertRaises(ConfigurationError):
             build_scenario(config)
 
+    def test_missing_scenario_name_is_rejected(self) -> None:
+        config = load_config("configs/base_scenario.json")
+        del config["scenario_name"]
+
+        with self.assertRaises(ConfigurationError):
+            build_scenario(config)
+
     def test_unknown_route_stage_is_rejected(self) -> None:
         config = load_config("configs/base_scenario.json")
         config["batches"]["route"] = ["missing"]
@@ -177,6 +184,53 @@ class ScenarioTestCase(unittest.TestCase):
             [batch.batch_id for batch in first],
             [batch.batch_id for batch in second],
         )
+
+    def test_fixed_batches_can_derive_route_from_single_entry_line(self) -> None:
+        config = {
+            "scenario_name": "fixed_default_route",
+            "simulation_duration": 10,
+            "stages": [
+                {
+                    "stage_id": "cutting",
+                    "name": "Cutting",
+                    "next_stage_id": "assembly",
+                    "machines": [
+                        {
+                            "machine_id": "cut-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+                {
+                    "stage_id": "assembly",
+                    "name": "Assembly",
+                    "machines": [
+                        {
+                            "machine_id": "asm-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+            ],
+            "batches": {
+                "mode": "fixed",
+                "items": [
+                    {
+                        "batch_id": "batch-a",
+                        "arrival_time": 0.0,
+                        "size": 1,
+                    }
+                ],
+            },
+        }
+
+        scenario = build_scenario(config)
+
+        self.assertEqual(scenario.batches[0].route, ["cutting", "assembly"])
 
     def test_yaml_config_is_supported(self) -> None:
         if find_spec("yaml") is None:

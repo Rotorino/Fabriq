@@ -63,9 +63,7 @@ def validate_config(config: dict[str, Any]) -> None:
 
 def _validate_scenario_metadata(config: dict[str, Any]) -> None:
     scenario_name = config.get("scenario_name")
-    if scenario_name is not None and (
-        not isinstance(scenario_name, str) or not scenario_name
-    ):
+    if not isinstance(scenario_name, str) or not scenario_name:
         raise ConfigurationError("scenario_name must be a non-empty string")
     if "simulation_duration" not in config:
         raise ConfigurationError("simulation_duration is required")
@@ -126,6 +124,12 @@ def _validate_batches(
                         "Each fixed batch must define a positive size or batches.size"
                     ) from exc
             item_route = item.get("route", route)
+            if item_route is None:
+                if len(entry_stage_ids) != 1:
+                    raise ConfigurationError(
+                        "Each fixed batch must define a non-empty route when the production line has multiple entry stages"
+                    )
+                continue
             if not isinstance(item_route, list) or not item_route:
                 raise ConfigurationError(
                     "Each fixed batch must define a non-empty route"
