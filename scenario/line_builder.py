@@ -71,14 +71,21 @@ def build_production_line(config: dict[str, Any]) -> ProductionLine:
 
 def build_batches(config: dict[str, Any], line: ProductionLine) -> list[Batch]:
     """Build validated batches for the production line."""
-    configured_route = config["batches"].get("route")
-    if configured_route is None and len(line.entry_stage_ids) != 1:
+    batches_config = config["batches"]
+    configured_route = batches_config.get("route")
+    mode = str(batches_config.get("mode", "equal_intervals"))
+    if configured_route is None and len(line.entry_stage_ids) != 1 and mode != "fixed":
         raise ConfigurationError(
             "batches.route is required when the production line has multiple entry stages"
         )
-    default_route = list(configured_route or line.route_from_entry())
+    if configured_route is not None:
+        default_route = list(configured_route)
+    elif len(line.entry_stage_ids) == 1:
+        default_route = line.route_from_entry()
+    else:
+        default_route = []
     return generate_batches(
-        config["batches"],
+        batches_config,
         default_route,
         seed=config.get("seed"),
     )

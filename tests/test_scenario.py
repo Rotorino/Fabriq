@@ -462,6 +462,68 @@ batches:
         self.assertIsNone(scenario.production_line.entry_stage_id)
         self.assertEqual(scenario.batches[0].route, ["painting", "assembly"])
 
+    def test_fixed_batches_support_item_routes_on_multiple_entry_line(self) -> None:
+        config = {
+            "scenario_name": "multi_entry_fixed",
+            "simulation_duration": 10,
+            "stages": [
+                {
+                    "stage_id": "cutting",
+                    "name": "Cutting",
+                    "next_stage_id": "assembly",
+                    "machines": [
+                        {
+                            "machine_id": "cut-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+                {
+                    "stage_id": "painting",
+                    "name": "Painting",
+                    "next_stage_id": "assembly",
+                    "machines": [
+                        {
+                            "machine_id": "paint-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+                {
+                    "stage_id": "assembly",
+                    "name": "Assembly",
+                    "machines": [
+                        {
+                            "machine_id": "asm-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+            ],
+            "batches": {
+                "mode": "fixed",
+                "items": [
+                    {
+                        "batch_id": "batch-a",
+                        "arrival_time": 0.0,
+                        "size": 1,
+                        "route": ["painting", "assembly"],
+                    }
+                ],
+            },
+        }
+
+        scenario = build_scenario(config)
+
+        self.assertEqual(sorted(scenario.production_line.entry_stage_ids), ["cutting", "painting"])
+        self.assertEqual(scenario.batches[0].route, ["painting", "assembly"])
+
     def test_fixed_batches_require_unique_ids(self) -> None:
         config = load_config("configs/base_scenario.json")
         config["batches"] = {
@@ -502,6 +564,54 @@ batches:
         scenario = build_scenario(config)
 
         self.assertEqual(scenario.batches[0].size, 5)
+
+    def test_route_cannot_continue_after_terminal_stage(self) -> None:
+        config = {
+            "scenario_name": "invalid_terminal_route",
+            "simulation_duration": 10,
+            "stages": [
+                {
+                    "stage_id": "cutting",
+                    "name": "Cutting",
+                    "next_stage_id": None,
+                    "machines": [
+                        {
+                            "machine_id": "cut-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+                {
+                    "stage_id": "assembly",
+                    "name": "Assembly",
+                    "machines": [
+                        {
+                            "machine_id": "asm-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+            ],
+            "batches": {
+                "mode": "fixed",
+                "route": ["cutting", "assembly"],
+                "items": [
+                    {
+                        "batch_id": "batch-a",
+                        "arrival_time": 0.0,
+                        "size": 1,
+                        "route": ["cutting", "assembly"],
+                    }
+                ],
+            },
+        }
+
+        with self.assertRaises(ConfigurationError):
+            build_scenario(config)
 
     def test_three_required_scenarios_are_valid(self) -> None:
         for path in [

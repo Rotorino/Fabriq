@@ -167,7 +167,7 @@ def _validate_route_consistency(
         )
     for current_stage_id, next_stage_id in zip(route, route[1:]):
         configured_next = stage_map[current_stage_id].get("next_stage_id")
-        if configured_next is not None and configured_next != next_stage_id:
+        if configured_next != next_stage_id:
             raise ConfigurationError(
                 f"Route is inconsistent with stage links: {current_stage_id} -> {next_stage_id}"
             )
