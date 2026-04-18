@@ -613,6 +613,54 @@ batches:
         with self.assertRaises(ConfigurationError):
             build_scenario(config)
 
+    def test_route_cannot_terminate_before_line_end(self) -> None:
+        config = {
+            "scenario_name": "short_route",
+            "simulation_duration": 10,
+            "stages": [
+                {
+                    "stage_id": "cutting",
+                    "name": "Cutting",
+                    "next_stage_id": "assembly",
+                    "machines": [
+                        {
+                            "machine_id": "cut-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+                {
+                    "stage_id": "assembly",
+                    "name": "Assembly",
+                    "machines": [
+                        {
+                            "machine_id": "asm-1",
+                            "processing_time": 1.0,
+                            "repair_time": 0.0,
+                            "breakdown_probability": 0.0,
+                        }
+                    ],
+                },
+            ],
+            "batches": {
+                "mode": "fixed",
+                "route": ["cutting"],
+                "items": [
+                    {
+                        "batch_id": "batch-a",
+                        "arrival_time": 0.0,
+                        "size": 1,
+                        "route": ["cutting"],
+                    }
+                ],
+            },
+        }
+
+        with self.assertRaises(ConfigurationError):
+            build_scenario(config)
+
     def test_three_required_scenarios_are_valid(self) -> None:
         for path in [
             "configs/base_scenario.json",

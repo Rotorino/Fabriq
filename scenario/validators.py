@@ -171,6 +171,12 @@ def _validate_route_consistency(
             raise ConfigurationError(
                 f"Route is inconsistent with stage links: {current_stage_id} -> {next_stage_id}"
             )
+    final_stage_id = route[-1]
+    configured_next = stage_map[final_stage_id].get("next_stage_id")
+    if configured_next is not None:
+        raise ConfigurationError(
+            f"Route terminates early before configured next stage: {final_stage_id} -> {configured_next}"
+        )
 
 
 def _validate_line_topology(
