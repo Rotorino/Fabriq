@@ -5,10 +5,10 @@ const config = {
   tagline: 'Документация ядра моделирования производственных процессов',
   favicon: 'img/favicon.ico',
 
-  url: 'https://de-de-dev.github.io',
+  url: 'https://Rotorino.github.io',
   baseUrl: '/Fabriq/',
 
-  organizationName: 'de-de-dev',
+  organizationName: 'Rotorino',
   projectName: 'Fabriq',
   trailingSlash: false,
 
@@ -51,7 +51,7 @@ const config = {
           label: 'Ядро моделирования',
         },
         {
-          href: 'https://github.com/de-de-dev/Fabriq',
+          href: 'https://github.com/Rotorino/Fabriq',
           label: 'GitHub',
           position: 'right',
         },
@@ -78,7 +78,7 @@ const config = {
           items: [
             {
               label: 'Репозиторий',
-              href: 'https://github.com/de-de-dev/Fabriq',
+              href: 'https://github.com/Rotorino/Fabriq',
             },
           ],
         },
