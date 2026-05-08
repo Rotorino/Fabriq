@@ -1,36 +1,36 @@
 # Fabriq
 
-Fabriq is a modular Python application for discrete-event simulation of a
-production line. It loads a JSON or YAML scenario, builds a validated
-production model, runs the simulation engine, calculates metrics, exports
-reports, and writes SVG charts.
+Fabriq — это модульное Python-приложение для дискретно-событийного моделирования
+производственной линии. Оно загружает JSON- или YAML-сценарий, строит
+валидированную модель производства, запускает движок симуляции, вычисляет
+метрики, экспортирует отчёты и создаёт SVG-графики.
 
-## Architecture
+## Архитектура
 
-Project modules:
+Модули проекта:
 
-- `domain/`: shared entities, enums, and DTOs
-- `scenario/`: config loading, validation, and scenario building
-- `engine/`: discrete-event simulation core
-- `analytics/`: metrics and comparison logic
-- `reporting/`: JSON/CSV/TXT report export
-- `visualization/`: SVG chart generation
-- `app/`: CLI entrypoint
+- `domain/`: общие сущности, перечисления и DTO
+- `scenario/`: загрузка конфигурации, валидация и построение сценариев
+- `engine/`: ядро дискретно-событийной симуляции
+- `analytics/`: метрики и логика сравнения
+- `reporting/`: экспорт отчётов в JSON/CSV/TXT
+- `visualization/`: генерация SVG-графиков
+- `app/`: CLI-точка входа
 
-Detailed docs are in `docs/docs/`:
+Подробная документация находится в `docs/docs/`:
 
-- `architecture.md`: engine structure and runtime rules
-- `event-flow.md`: event lifecycle and stop conditions
-- `scenario-module.md`: config format, validation, and scenario builder
-- `integration-contract.md`: public DTO and module contracts
+- `architecture.md`: структура движка и правила выполнения
+- `event-flow.md`: жизненный цикл событий и условия остановки
+- `scenario-module.md`: формат конфигурации, валидация и сборщик сценариев
+- `integration-contract.md`: публичные DTO и контракты модулей
 
-## Run
+## Запуск
 
 ```bash
 python -m app.main --config configs/base_scenario.json
-```
+````
 
-Scenario comparison is also supported from the CLI:
+Сравнение сценариев также поддерживается через CLI:
 
 ```bash
 python -m app.main --config \
@@ -39,40 +39,40 @@ python -m app.main --config \
   configs/frequent_breakdowns.json
 ```
 
-Outputs are written to `results/<scenario_name>/`:
+Результаты сохраняются в `results/<scenario_name>/`:
 
-- `report.json`
-- `metrics.csv`
-- `summary.txt`
-- `charts/queue_length.svg`
-- `charts/machine_utilization.svg`
-- `charts/batch_cycle_time.svg`
+* `report.json`
+* `metrics.csv`
+* `summary.txt`
+* `charts/queue_length.svg`
+* `charts/machine_utilization.svg`
+* `charts/batch_cycle_time.svg`
 
-When multiple configs are passed, a comparison report is written to
+При передаче нескольких конфигураций отчёт сравнения сохраняется в
 `results/comparison/`:
 
-- `comparison_report.json`
-- `comparison.csv`
-- `comparison_summary.txt`
+* `comparison_report.json`
+* `comparison.csv`
+* `comparison_summary.txt`
 
-Logs are written to `logs/`.
+Логи сохраняются в `logs/`.
 
-## Scenarios
+## Сценарии
 
-The repository includes three required scenarios:
+Репозиторий включает три обязательных сценария:
 
-- `configs/base_scenario.json`
-- `configs/high_load.json`
-- `configs/frequent_breakdowns.json`
+* `configs/base_scenario.json`
+* `configs/high_load.json`
+* `configs/frequent_breakdowns.json`
 
-Configuration rules to keep in mind:
+Правила конфигурации, которые важно учитывать:
 
-- JSON is required; YAML works when `PyYAML` is installed.
-- `batches.route` is mandatory when the line has multiple entry stages.
-- `queue_limit` and `buffer_capacity` must be non-negative integers or `null`.
-- probabilities such as `breakdown_probability` and `reject_probability` must be in `[0.0, 1.0]`.
+* JSON обязателен; YAML работает при установленном `PyYAML`.
+* `batches.route` обязателен, если линия имеет несколько входных этапов.
+* `queue_limit` и `buffer_capacity` должны быть неотрицательными целыми числами или `null`.
+* вероятности, такие как `breakdown_probability` и `reject_probability`, должны находиться в диапазоне `[0.0, 1.0]`.
 
-## Tests
+## Тесты
 
 ```bash
 python -m unittest discover -s tests
@@ -82,7 +82,8 @@ python -m compileall app domain scenario engine analytics reporting visualizatio
 
 ## CI
 
-GitHub Actions runs Python CI on pushes and pull requests for the main project
-branches. The workflow compiles Python packages, runs `unittest` discovery,
-runs `pytest`, executes every `configs/*.json` scenario through the CLI, checks
-fixed-seed engine repeatability, and uploads `logs/` and `results/` artifacts.
+GitHub Actions запускает Python CI при push и pull request в основные ветки
+проекта. Workflow компилирует Python-пакеты, запускает поиск `unittest`,
+выполняет `pytest`, прогоняет каждый сценарий `configs/*.json` через CLI,
+проверяет повторяемость движка с фиксированным seed и загружает артефакты
+`logs/` и `results/`.
