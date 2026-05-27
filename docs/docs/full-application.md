@@ -54,7 +54,7 @@ python -m app.main --config \
 
 ## Выходные файлы
 
-Результаты сохраняются в `results/<scenario_name>/`:
+Результаты сохраняются в ``results/<scenario_name>/``:
 
 - `report.json` - полный отчет;
 - `metrics.csv` - таблица метрик;

@@ -199,7 +199,7 @@ paths = [
 
 ## Performance
 
-- Chart generation is fast (<10ms per chart)
+- Chart generation is fast (`< 10ms` per chart)
 - Memory usage is minimal (string concatenation)
 - No external process spawning
 - Suitable for batch generation of hundreds of charts
