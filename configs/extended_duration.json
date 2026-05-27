@@ -1,0 +1,36 @@
+{
+  "scenario_name": "extended_duration",
+  "description": "Very long simulation duration.",
+  "scenario_config": {
+    "name": "Extended Duration",
+    "description": "Simulation running for 5000 time units to analyze steady-state behavior and long-term trends."
+  },
+  "simulation_duration": 5000,
+  "seed": 555,
+  "stages": [
+    {
+      "stage_id": "stage-1",
+      "name": "Основная обработка",
+      "queue_limit": 10,
+      "buffer_capacity": 10,
+      "reject_probability": 0.01,
+      "next_stage_id": null,
+      "machines": [
+        {
+          "machine_id": "m-1",
+          "name": "Универсальный станок №1",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.01,
+          "repair_time": 2.0
+        }
+      ]
+    }
+  ],
+  "batches": {
+    "mode": "equal_intervals",
+    "count": 100,
+    "size": 10,
+    "arrival_interval": 10.0,
+    "route": ["stage-1"]
+  }
+}

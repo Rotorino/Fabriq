@@ -1,0 +1,70 @@
+{
+  "scenario_name": "fragile_machines",
+  "description": "Machines with very high breakdown probability.",
+  "scenario_config": {
+    "name": "Fragile Machines",
+    "description": "A scenario testing the impact of frequent equipment failures on the production line."
+  },
+  "simulation_duration": 100,
+  "seed": 201,
+  "stages": [
+    {
+      "stage_id": "cutting",
+      "name": "Раскрой материала",
+      "queue_limit": 5,
+      "buffer_capacity": 5,
+      "reject_probability": 0.01,
+      "next_stage_id": "assembly",
+      "machines": [
+        {
+          "machine_id": "cut-1",
+          "name": "Хрупкий лазер №1",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.4,
+          "repair_time": 2.0
+        }
+      ]
+    },
+    {
+      "stage_id": "assembly",
+      "name": "Участок сборки",
+      "queue_limit": 5,
+      "buffer_capacity": 5,
+      "reject_probability": 0.01,
+      "next_stage_id": "quality",
+      "machines": [
+        {
+          "machine_id": "asm-1",
+          "name": "Ненадежный робот №1",
+          "processing_time": 3.0,
+          "breakdown_probability": 0.4,
+          "repair_time": 2.0
+        }
+      ]
+    },
+    {
+      "stage_id": "quality",
+      "name": "Контроль качества",
+      "queue_limit": 5,
+      "buffer_capacity": 5,
+      "reject_probability": 0.01,
+      "next_stage_id": null,
+      "machines": [
+        {
+          "machine_id": "qc-1",
+          "name": "Сбоящий стенд №1",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.4,
+          "repair_time": 2.0
+        }
+      ]
+    }
+  ],
+  "batches": {
+    "mode": "equal_intervals",
+    "count": 15,
+    "size": 5,
+    "arrival_interval": 6.0,
+    "route": ["cutting", "assembly", "quality"]
+  }
+}

@@ -26,18 +26,19 @@ Fabriq — это модульное Python-приложение для диск
 
 ## Запуск
 
+### Веб-интерфейс (рекомендуется)
+
+```bash
+pip install -r requirements.txt
+streamlit run app/ui.py
+```
+
+### CLI
+
 ```bash
 python -m app.main --config configs/base_scenario.json
-````
-
-Сравнение сценариев также поддерживается через CLI:
-
-```bash
-python -m app.main --config \
-  configs/base_scenario.json \
-  configs/high_load.json \
-  configs/frequent_breakdowns.json
 ```
+
 
 Результаты сохраняются в `results/<scenario_name>/`:
 

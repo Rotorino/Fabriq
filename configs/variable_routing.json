@@ -1,0 +1,64 @@
+{
+  "scenario_name": "variable_routing",
+  "description": "Complex sequential stages with 5 different processing points.",
+  "scenario_config": {
+    "name": "Variable Routing / Multi-Stage",
+    "description": "A long production line with 5 sequential stages to test cumulative delays and complex routing."
+  },
+  "simulation_duration": 200,
+  "seed": 123,
+  "stages": [
+    {
+      "stage_id": "prep",
+      "name": "Подготовка сырья",
+      "queue_limit": 5,
+      "buffer_capacity": 3,
+      "reject_probability": 0.01,
+      "next_stage_id": "cutting",
+      "machines": [{"machine_id": "p-1", "name": "Узел первичной подготовки", "processing_time": 1.0, "breakdown_probability": 0.01, "repair_time": 1.0}]
+    },
+    {
+      "stage_id": "cutting",
+      "name": "Раскрой материала",
+      "queue_limit": 5,
+      "buffer_capacity": 3,
+      "reject_probability": 0.02,
+      "next_stage_id": "assembly",
+      "machines": [{"machine_id": "c-1", "name": "Режущий комплекс", "processing_time": 2.0, "breakdown_probability": 0.02, "repair_time": 2.0}]
+    },
+    {
+      "stage_id": "assembly",
+      "name": "Участок сборки",
+      "queue_limit": 5,
+      "buffer_capacity": 3,
+      "reject_probability": 0.02,
+      "next_stage_id": "finishing",
+      "machines": [{"machine_id": "a-1", "name": "Автоматическая линия сборки", "processing_time": 3.0, "breakdown_probability": 0.03, "repair_time": 2.0}]
+    },
+    {
+      "stage_id": "finishing",
+      "name": "Финишная обработка",
+      "queue_limit": 5,
+      "buffer_capacity": 3,
+      "reject_probability": 0.01,
+      "next_stage_id": "quality",
+      "machines": [{"machine_id": "f-1", "name": "Покрасочная камера", "processing_time": 2.0, "breakdown_probability": 0.02, "repair_time": 1.5}]
+    },
+    {
+      "stage_id": "quality",
+      "name": "Контроль качества",
+      "queue_limit": 5,
+      "buffer_capacity": 3,
+      "reject_probability": 0.01,
+      "next_stage_id": null,
+      "machines": [{"machine_id": "q-1", "name": "Оптический сканер", "processing_time": 1.5, "breakdown_probability": 0.01, "repair_time": 1.0}]
+    }
+  ],
+  "batches": {
+    "mode": "equal_intervals",
+    "count": 15,
+    "size": 10,
+    "arrival_interval": 4.0,
+    "route": ["prep", "cutting", "assembly", "finishing", "quality"]
+  }
+}

@@ -6,7 +6,7 @@
   "stages": [
     {
       "stage_id": "cutting",
-      "name": "Cutting",
+      "name": "Раскрой материала",
       "queue_limit": 3,
       "buffer_capacity": 2,
       "reject_probability": 0.02,
@@ -14,6 +14,7 @@
       "machines": [
         {
           "machine_id": "cut-1",
+          "name": "Проблемный лазер",
           "processing_time": 2.0,
           "breakdown_probability": 0.35,
           "repair_time": 3.0
@@ -22,7 +23,7 @@
     },
     {
       "stage_id": "assembly",
-      "name": "Assembly",
+      "name": "Участок сборки",
       "queue_limit": 3,
       "buffer_capacity": 2,
       "reject_probability": 0.03,
@@ -30,6 +31,7 @@
       "machines": [
         {
           "machine_id": "asm-1",
+          "name": "Старый манипулятор",
           "processing_time": 3.0,
           "breakdown_probability": 0.35,
           "repair_time": 4.0
@@ -38,7 +40,7 @@
     },
     {
       "stage_id": "quality",
-      "name": "Quality control",
+      "name": "Контроль качества",
       "queue_limit": 4,
       "buffer_capacity": 2,
       "reject_probability": 0.01,
@@ -46,6 +48,7 @@
       "machines": [
         {
           "machine_id": "qc-1",
+          "name": "Изношенный стенд",
           "processing_time": 1.5,
           "breakdown_probability": 0.25,
           "repair_time": 2.0

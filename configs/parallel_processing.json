@@ -1,0 +1,84 @@
+{
+  "scenario_name": "parallel_processing",
+  "description": "Stage with multiple parallel machines.",
+  "scenario_config": {
+    "name": "Parallel Processing",
+    "description": "A scenario where the assembly stage has multiple machines working in parallel to handle higher load."
+  },
+  "simulation_duration": 100,
+  "seed": 301,
+  "stages": [
+    {
+      "stage_id": "cutting",
+      "name": "Раскрой материала",
+      "queue_limit": 5,
+      "buffer_capacity": 5,
+      "reject_probability": 0.01,
+      "next_stage_id": "assembly",
+      "machines": [
+        {
+          "machine_id": "cut-1",
+          "name": "Станок лазерной резки №1",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.05,
+          "repair_time": 2.0
+        }
+      ]
+    },
+    {
+      "stage_id": "assembly",
+      "name": "Параллельная сборка",
+      "queue_limit": 10,
+      "buffer_capacity": 10,
+      "reject_probability": 0.02,
+      "next_stage_id": "quality",
+      "machines": [
+        {
+          "machine_id": "asm-1",
+          "name": "Сборочный робот №1",
+          "processing_time": 5.0,
+          "breakdown_probability": 0.05,
+          "repair_time": 3.0
+        },
+        {
+          "machine_id": "asm-2",
+          "name": "Сборочный робот №2",
+          "processing_time": 5.0,
+          "breakdown_probability": 0.05,
+          "repair_time": 3.0
+        },
+        {
+          "machine_id": "asm-3",
+          "name": "Сборочный робот №3",
+          "processing_time": 5.0,
+          "breakdown_probability": 0.05,
+          "repair_time": 3.0
+        }
+      ]
+    },
+    {
+      "stage_id": "quality",
+      "name": "Контроль качества",
+      "queue_limit": 5,
+      "buffer_capacity": 5,
+      "reject_probability": 0.01,
+      "next_stage_id": null,
+      "machines": [
+        {
+          "machine_id": "qc-1",
+          "name": "Контрольный стенд №1",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.05,
+          "repair_time": 2.0
+        }
+      ]
+    }
+  ],
+  "batches": {
+    "mode": "equal_intervals",
+    "count": 30,
+    "size": 5,
+    "arrival_interval": 3.0,
+    "route": ["cutting", "assembly", "quality"]
+  }
+}

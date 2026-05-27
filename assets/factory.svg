@@ -1,0 +1,287 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 800 400" width="100%" height="100%">
+  <defs>
+    <!-- Фоновый паттерн пола -->
+    <pattern id="floor" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+      <rect width="40" height="40" fill="#1c1b2a"/>
+      <path d="M0 40 L40 0" stroke="#1c1b2a" stroke-width="1"/>
+    </pattern>
+
+    <!-- Градиент металла -->
+    <linearGradient id="metal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4a5568"/>
+      <stop offset="30%" stop-color="#718096"/>
+      <stop offset="50%" stop-color="#a0aec0"/>
+      <stop offset="70%" stop-color="#718096"/>
+      <stop offset="100%" stop-color="#2d3748"/>
+    </linearGradient>
+
+    <linearGradient id="metal-dark" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2d3748"/>
+      <stop offset="50%" stop-color="#4a5568"/>
+      <stop offset="100%" stop-color="#1a202c"/>
+    </linearGradient>
+
+    <linearGradient id="belt" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2d3748"/>
+      <stop offset="20%" stop-color="#1a202c"/>
+      <stop offset="50%" stop-color="#4a5568"/>
+      <stop offset="80%" stop-color="#1a202c"/>
+      <stop offset="100%" stop-color="#2d3748"/>
+    </linearGradient>
+
+    <!-- Градиент для свечения продукта -->
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00f5d4" stop-opacity="0.6"/>
+      <stop offset="50%" stop-color="#00bbf9" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#9b5de5" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="blur-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+
+    <!-- === ФОРМА ПРОДУКТА С КАРТИНКОЙ === -->
+    <g id="product-shape">
+      <!-- Свечение под продуктом -->
+      <circle cx="0" cy="0" r="28" fill="url(#glow)" filter="url(#blur-glow)" opacity="0.5">
+        <animate attributeName="opacity" values="0.3;0.7;0.3" dur="2s" repeatCount="indefinite"/>
+      </circle>
+
+      <!-- Корпус продукта (подложка) -->
+      <rect x="-20" y="-25" width="40" height="50" rx="6" fill="#0f172a" stroke="#00f5d4" stroke-width="1.5"/>
+
+      <!-- === ВАША КАРТИНКА НА ПРОДУКТЕ === -->
+      <!-- Картинка вписывается в продукт, обрезается по маске -->
+      <clipPath id="product-clip">
+        <rect x="-18" y="-23" width="36" height="46" rx="5"/>
+      </clipPath>
+
+      <image 
+        xlink:href="https://i.postimg.cc/YL1rmWCy/image.png" 
+        x="-18" y="-23" 
+        width="36" height="46" 
+        preserveAspectRatio="xMidYMid slice"
+        clip-path="url(#product-clip)"
+        opacity="0.95"
+      />
+
+      <!-- Рамка поверх картинки для эффекта экрана/наклейки -->
+      <rect x="-18" y="-23" width="36" height="46" rx="5" fill="none" stroke="#00f5d4" stroke-width="1" opacity="0.6"/>
+
+      <!-- Светящиеся уголки -->
+      <circle cx="-15" cy="-20" r="2" fill="#00f5d4" opacity="0.8">
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="1.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="15" cy="-20" r="2" fill="#00f5d4" opacity="0.8">
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="1.5s" begin="0.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="-15" cy="20" r="2" fill="#00f5d4" opacity="0.8">
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="1.5s" begin="1s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="15" cy="20" r="2" fill="#00f5d4" opacity="0.8">
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="1.5s" begin="1.5s" repeatCount="indefinite"/>
+      </circle>
+
+      <!-- Боковые элементы -->
+      <rect x="-22" y="-12" width="3" height="24" rx="1" fill="#4a5568"/>
+      <rect x="19" y="-12" width="3" height="24" rx="1" fill="#4a5568"/>
+    </g>
+  </defs>
+
+  <!-- Фон -->
+  <rect width="800" height="400" fill="#1c1b2a"/>
+
+  <!-- Тень от станка -->
+  <ellipse cx="250" cy="340" rx="120" ry="15" fill="#000" opacity="0.4"/>
+
+  <!-- === СТАНОК (слева) === -->
+  <g id="machine">
+    <!-- Основной корпус -->
+    <rect x="130" y="120" width="140" height="200" rx="8" fill="url(#metal)" stroke="#2d3748" stroke-width="2"/>
+    <rect x="140" y="100" width="120" height="30" rx="5" fill="url(#metal-dark)" stroke="#4a5568" stroke-width="1"/>
+    <rect x="135" y="130" width="130" height="180" rx="4" fill="none" stroke="#4a5568" stroke-width="1" opacity="0.5"/>
+
+    <!-- Вентиляционные решётки -->
+    <g opacity="0.6">
+      <rect x="150" y="140" width="100" height="3" rx="1" fill="#1a202c"/>
+      <rect x="150" y="148" width="100" height="3" rx="1" fill="#1a202c"/>
+      <rect x="150" y="156" width="100" height="3" rx="1" fill="#1a202c"/>
+      <rect x="150" y="164" width="100" height="3" rx="1" fill="#1a202c"/>
+      <rect x="150" y="172" width="100" height="3" rx="1" fill="#1a202c"/>
+    </g>
+
+    <!-- Панель управления -->
+    <rect x="150" y="200" width="100" height="80" rx="4" fill="#1a202c" stroke="#4a5568" stroke-width="1"/>
+    <rect x="160" y="210" width="80" height="40" rx="2" fill="#0f172a" stroke="#00f5d4" stroke-width="1"/>
+    <rect x="165" y="218" width="20" height="4" rx="1" fill="#00f5d4" opacity="0.8">
+      <animate attributeName="width" values="20;50;20" dur="2s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="165" y="228" width="40" height="4" rx="1" fill="#00bbf9" opacity="0.6">
+      <animate attributeName="width" values="40;70;40" dur="2.5s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="165" y="238" width="30" height="4" rx="1" fill="#9b5de5" opacity="0.5">
+      <animate attributeName="width" values="30;60;30" dur="3s" repeatCount="indefinite"/>
+    </rect>
+
+    <!-- Кнопки -->
+    <circle cx="170" cy="265" r="5" fill="#ef4444" opacity="0.8">
+      <animate attributeName="opacity" values="0.5;1;0.5" dur="1s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="190" cy="265" r="5" fill="#22c55e" opacity="0.8"/>
+    <circle cx="210" cy="265" r="5" fill="#3b82f6" opacity="0.8"/>
+    <circle cx="230" cy="265" r="5" fill="#eab308" opacity="0.8"/>
+
+    <!-- Индикатор статуса -->
+    <circle cx="200" cy="115" r="6" fill="#22c55e">
+      <animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite"/>
+    </circle>
+
+    <!-- Труба/выпускной отверстие -->
+    <rect x="260" y="240" width="40" height="50" rx="4" fill="url(#metal-dark)" stroke="#4a5568" stroke-width="2"/>
+    <rect x="265" y="245" width="30" height="40" rx="2" fill="#1a202c"/>
+    <rect x="295" y="238" width="8" height="54" rx="2" fill="#4a5568"/>
+
+    <!-- Поршень/штамп -->
+    <rect x="180" y="80" width="40" height="40" rx="4" fill="url(#metal)" stroke="#2d3748" stroke-width="2">
+      <animateTransform attributeName="transform" type="translate" values="0,0; 0,30; 0,0" dur="1.5s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="195" y="60" width="10" height="25" fill="#718096">
+      <animateTransform attributeName="transform" type="translate" values="0,0; 0,30; 0,0" dur="1.5s" repeatCount="indefinite"/>
+    </rect>
+
+    <!-- Подставка -->
+    <rect x="140" y="320" width="120" height="20" rx="2" fill="#2d3748"/>
+    <rect x="150" y="340" width="15" height="15" rx="2" fill="#1a202c"/>
+    <rect x="235" y="340" width="15" height="15" rx="2" fill="#1a202c"/>
+  </g>
+
+  <!-- === КОНВЕЙЕР === -->
+  <rect x="350" y="310" width="12" height="50" fill="#4a5568"/>
+  <rect x="450" y="310" width="12" height="50" fill="#4a5568"/>
+  <rect x="550" y="310" width="12" height="50" fill="#4a5568"/>
+  <rect x="650" y="310" width="12" height="50" fill="#4a5568"/>
+
+  <rect x="300" y="290" width="400" height="20" rx="4" fill="#1a202c" stroke="#4a5568" stroke-width="1"/>
+  <rect x="300" y="265" width="400" height="25" fill="url(#belt)" stroke="#2d3748" stroke-width="1"/>
+
+  <!-- Движущиеся полоски -->
+  <g opacity="0.3">
+    <rect x="0" y="268" width="30" height="3" rx="1" fill="#718096">
+      <animateTransform attributeName="transform" type="translate" from="300,0" to="700,0" dur="3s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="0" y="275" width="40" height="3" rx="1" fill="#718096">
+      <animateTransform attributeName="transform" type="translate" from="300,0" to="700,0" dur="3s" begin="1s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="0" y="282" width="25" height="3" rx="1" fill="#718096">
+      <animateTransform attributeName="transform" type="translate" from="300,0" to="700,0" dur="3s" begin="2s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+
+  <!-- Ролики -->
+  <g>
+    <circle cx="320" cy="290" r="8" fill="#4a5568" stroke="#2d3748" stroke-width="1">
+      <animateTransform attributeName="transform" type="rotate" from="0 320 290" to="360 320 290" dur="0.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="380" cy="290" r="8" fill="#4a5568" stroke="#2d3748" stroke-width="1">
+      <animateTransform attributeName="transform" type="rotate" from="0 380 290" to="360 380 290" dur="0.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="440" cy="290" r="8" fill="#4a5568" stroke="#2d3748" stroke-width="1">
+      <animateTransform attributeName="transform" type="rotate" from="0 440 290" to="360 440 290" dur="0.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="500" cy="290" r="8" fill="#4a5568" stroke="#2d3748" stroke-width="1">
+      <animateTransform attributeName="transform" type="rotate" from="0 500 290" to="360 500 290" dur="0.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="560" cy="290" r="8" fill="#4a5568" stroke="#2d3748" stroke-width="1">
+      <animateTransform attributeName="transform" type="rotate" from="0 560 290" to="360 560 290" dur="0.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="620" cy="290" r="8" fill="#4a5568" stroke="#2d3748" stroke-width="1">
+      <animateTransform attributeName="transform" type="rotate" from="0 620 290" to="360 620 290" dur="0.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="680" cy="290" r="8" fill="#4a5568" stroke="#2d3748" stroke-width="1">
+      <animateTransform attributeName="transform" type="rotate" from="0 680 290" to="360 680 290" dur="0.5s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- === ПРОДУКТЫ С ТВОЕЙ КАРТИНКОЙ === -->
+  <!-- Продукт 1 -->
+  <g>
+    <animateTransform attributeName="transform" type="translate" from="320,245" to="720,245" dur="6s" repeatCount="indefinite"/>
+    <use href="#product-shape"/>
+  </g>
+
+  <!-- Продукт 2 -->
+  <g>
+    <animateTransform attributeName="transform" type="translate" from="320,245" to="720,245" dur="6s" begin="2s" repeatCount="indefinite"/>
+    <use href="#product-shape"/>
+  </g>
+
+  <!-- Продукт 3 -->
+  <g>
+    <animateTransform attributeName="transform" type="translate" from="320,245" to="720,245" dur="6s" begin="4s" repeatCount="indefinite"/>
+    <use href="#product-shape"/>
+  </g>
+
+  <!-- Искры при выпуске -->
+  <g>
+    <circle cx="305" cy="250" r="3" fill="#00f5d4" opacity="0">
+      <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/>
+      <animate attributeName="cy" values="250;225" dur="1.5s" repeatCount="indefinite"/>
+      <animate attributeName="cx" values="305;290" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="305" cy="255" r="2" fill="#00bbf9" opacity="0">
+      <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="0.3s" repeatCount="indefinite"/>
+      <animate attributeName="cy" values="255;230" dur="1.5s" begin="0.3s" repeatCount="indefinite"/>
+      <animate attributeName="cx" values="305;315" dur="1.5s" begin="0.3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="305" cy="245" r="2.5" fill="#9b5de5" opacity="0">
+      <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="0.6s" repeatCount="indefinite"/>
+      <animate attributeName="cy" values="245;220" dur="1.5s" begin="0.6s" repeatCount="indefinite"/>
+      <animate attributeName="cx" values="305;300" dur="1.5s" begin="0.6s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- === БОКС ДЛЯ ГОТОВЫХ ПРОДУКТОВ === -->
+  <g id="box">
+    <ellipse cx="740" cy="345" rx="45" ry="10" fill="#000" opacity="0.3"/>
+    <rect x="700" y="280" width="80" height="60" rx="4" fill="#2d3748" stroke="#4a5568" stroke-width="2"/>
+    <rect x="705" y="285" width="70" height="50" rx="2" fill="#1a202c"/>
+    <rect x="700" y="280" width="80" height="60" rx="4" fill="none" stroke="#4a5568" stroke-width="2" stroke-dasharray="4,2"/>
+    <rect x="715" y="295" width="50" height="20" rx="2" fill="#0f172a" stroke="#00f5d4" stroke-width="1"/>
+    <path d="M735 318 L740 328 L745 318" fill="none" stroke="#00f5d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/>
+    </path>
+  </g>
+
+  <!-- Декоративные элементы -->
+  <path d="M130 250 Q 100 250, 100 300 Q 100 350, 80 350" fill="none" stroke="#4a5568" stroke-width="3" stroke-linecap="round"/>
+  <path d="M130 270 Q 110 270, 110 310 Q 110 360, 90 360" fill="none" stroke="#2d3748" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="80" cy="350" r="5" fill="#1a202c" stroke="#4a5568" stroke-width="1"/>
+  <circle cx="90" cy="360" r="4" fill="#1a202c" stroke="#4a5568" stroke-width="1"/>
+
+  <rect x="150" y="70" width="100" height="8" rx="4" fill="#4a5568"/>
+  <rect x="180" y="50" width="8" height="25" rx="4" fill="#4a5568"/>
+  <circle cx="184" cy="48" r="6" fill="#ef4444" opacity="0.7">
+    <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Пар/дым -->
+  <circle cx="184" cy="35" r="8" fill="#718096" opacity="0">
+    <animate attributeName="opacity" values="0;0.4;0" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="cy" values="35;10" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="r" values="8;15" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="190" cy="30" r="6" fill="#a0aec0" opacity="0">
+    <animate attributeName="opacity" values="0;0.3;0" dur="3s" begin="1s" repeatCount="indefinite"/>
+    <animate attributeName="cy" values="30;5" dur="3s" begin="1s" repeatCount="indefinite"/>
+    <animate attributeName="r" values="6;12" dur="3s" begin="1s" repeatCount="indefinite"/>
+  </circle>
+
+  <g transform="translate(680, 375)">
+    <rect x="0" y="0" width="8" height="8" rx="2" fill="#22c55e">
+      <animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="12" y="0" width="8" height="8" rx="2" fill="#3b82f6"/>
+    <rect x="24" y="0" width="8" height="8" rx="2" fill="#eab308"/>
+    <rect x="36" y="0" width="8" height="8" rx="2" fill="#ef4444"/>
+  </g>
+</svg>

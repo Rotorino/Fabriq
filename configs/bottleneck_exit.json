@@ -1,0 +1,70 @@
+{
+  "scenario_name": "bottleneck_exit",
+  "description": "Slow final stage causing upstream congestion.",
+  "scenario_config": {
+    "name": "Bottleneck at Exit",
+    "description": "A scenario where the final stage is the slowest, causing buffers in previous stages to fill up."
+  },
+  "simulation_duration": 150,
+  "seed": 102,
+  "stages": [
+    {
+      "stage_id": "cutting",
+      "name": "Быстрый раскрой",
+      "queue_limit": 5,
+      "buffer_capacity": 5,
+      "reject_probability": 0.01,
+      "next_stage_id": "assembly",
+      "machines": [
+        {
+          "machine_id": "cut-1",
+          "name": "Станок лазерной резки №1",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.01,
+          "repair_time": 1.0
+        }
+      ]
+    },
+    {
+      "stage_id": "assembly",
+      "name": "Быстрая сборка",
+      "queue_limit": 5,
+      "buffer_capacity": 5,
+      "reject_probability": 0.01,
+      "next_stage_id": "quality",
+      "machines": [
+        {
+          "machine_id": "asm-1",
+          "name": "Сборочный робот №1",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.01,
+          "repair_time": 1.0
+        }
+      ]
+    },
+    {
+      "stage_id": "quality",
+      "name": "Медленный контроль",
+      "queue_limit": 2,
+      "buffer_capacity": 2,
+      "reject_probability": 0.01,
+      "next_stage_id": null,
+      "machines": [
+        {
+          "machine_id": "qc-1",
+          "name": "Контрольный стенд №1",
+          "processing_time": 12.0,
+          "breakdown_probability": 0.01,
+          "repair_time": 1.0
+        }
+      ]
+    }
+  ],
+  "batches": {
+    "mode": "equal_intervals",
+    "count": 25,
+    "size": 4,
+    "arrival_interval": 4.0,
+    "route": ["cutting", "assembly", "quality"]
+  }
+}

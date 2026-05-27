@@ -1,0 +1,37 @@
+{
+  "scenario_name": "zero_buffer_rejection",
+  "description": "No buffers available, forcing immediate rejection if machines are busy.",
+  "scenario_config": {
+    "name": "Zero Buffer Rejection",
+    "description": "A scenario where all buffer capacities are zero, testing the system's ability to handle extreme lack of storage."
+  },
+  "simulation_duration": 100,
+  "seed": 0,
+  "stages": [
+    {
+      "stage_id": "stage-1",
+      "name": "Входной контроль",
+      "queue_limit": 5,
+      "buffer_capacity": 0,
+      "reject_probability": 0.01,
+      "next_stage_id": "stage-2",
+      "machines": [{"machine_id": "m-1", "name": "Приемный терминал", "processing_time": 2.0, "breakdown_probability": 0.01, "repair_time": 1.0}]
+    },
+    {
+      "stage_id": "stage-2",
+      "name": "Выходной узел",
+      "queue_limit": 5,
+      "buffer_capacity": 0,
+      "reject_probability": 0.01,
+      "next_stage_id": null,
+      "machines": [{"machine_id": "m-2", "name": "Станция отгрузки", "processing_time": 2.0, "breakdown_probability": 0.01, "repair_time": 1.0}]
+    }
+  ],
+  "batches": {
+    "mode": "equal_intervals",
+    "count": 20,
+    "size": 5,
+    "arrival_interval": 3.0,
+    "route": ["stage-1", "stage-2"]
+  }
+}

@@ -87,6 +87,7 @@ class Machine:
     """A machine assigned to one production stage."""
 
     machine_id: str
+    name: str
     stage_id: str
     processing_time: float
     breakdown_probability: float = 0.0

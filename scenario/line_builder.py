@@ -99,6 +99,7 @@ def _build_stages(raw_stages: list[dict[str, Any]]) -> dict[str, Stage]:
         machines = [
             Machine(
                 machine_id=str(raw_machine["machine_id"]),
+                name=str(raw_machine.get("name", raw_machine["machine_id"])),
                 stage_id=stage_id,
                 processing_time=float(raw_machine["processing_time"]),
                 breakdown_probability=float(

@@ -1,0 +1,70 @@
+{
+  "scenario_name": "stable_line",
+  "description": "Ideal production line with zero failures.",
+  "scenario_config": {
+    "name": "Highly Stable Line",
+    "description": "A baseline scenario with zero breakdown probability to evaluate maximum potential throughput."
+  },
+  "simulation_duration": 100,
+  "seed": 203,
+  "stages": [
+    {
+      "stage_id": "cutting",
+      "name": "Раскрой материала",
+      "queue_limit": 10,
+      "buffer_capacity": 5,
+      "reject_probability": 0.0,
+      "next_stage_id": "assembly",
+      "machines": [
+        {
+          "machine_id": "cut-1",
+          "name": "Эталонный лазер",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.0,
+          "repair_time": 0.0
+        }
+      ]
+    },
+    {
+      "stage_id": "assembly",
+      "name": "Участок сборки",
+      "queue_limit": 10,
+      "buffer_capacity": 5,
+      "reject_probability": 0.0,
+      "next_stage_id": "quality",
+      "machines": [
+        {
+          "machine_id": "asm-1",
+          "name": "Прецизионный робот",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.0,
+          "repair_time": 0.0
+        }
+      ]
+    },
+    {
+      "stage_id": "quality",
+      "name": "Контроль качества",
+      "queue_limit": 10,
+      "buffer_capacity": 5,
+      "reject_probability": 0.0,
+      "next_stage_id": null,
+      "machines": [
+        {
+          "machine_id": "qc-1",
+          "name": "Идеальный стенд контроля",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.0,
+          "repair_time": 0.0
+        }
+      ]
+    }
+  ],
+  "batches": {
+    "mode": "equal_intervals",
+    "count": 40,
+    "size": 5,
+    "arrival_interval": 2.0,
+    "route": ["cutting", "assembly", "quality"]
+  }
+}

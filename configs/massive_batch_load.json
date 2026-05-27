@@ -1,0 +1,36 @@
+{
+  "scenario_name": "massive_batch_load",
+  "description": "High volume of batches to test system scalability.",
+  "scenario_config": {
+    "name": "Massive Batch Load",
+    "description": "Stress testing the simulation with 500 batches to observe long-term stability and performance."
+  },
+  "simulation_duration": 1000,
+  "seed": 999,
+  "stages": [
+    {
+      "stage_id": "stage-1",
+      "name": "Массовая обработка",
+      "queue_limit": 50,
+      "buffer_capacity": 50,
+      "reject_probability": 0.01,
+      "next_stage_id": null,
+      "machines": [
+        {
+          "machine_id": "m-1",
+          "name": "Высокопроизводительный станок №1",
+          "processing_time": 1.0,
+          "breakdown_probability": 0.001,
+          "repair_time": 1.0
+        }
+      ]
+    }
+  ],
+  "batches": {
+    "mode": "equal_intervals",
+    "count": 500,
+    "size": 5,
+    "arrival_interval": 1.0,
+    "route": ["stage-1"]
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "scenario_name": "long_repairs",
+  "description": "Scenarios with rare but very long repair times.",
+  "scenario_config": {
+    "name": "Long Repair Cycles",
+    "description": "A scenario where machines rarely break down, but when they do, they take a long time to fix."
+  },
+  "simulation_duration": 200,
+  "seed": 202,
+  "stages": [
+    {
+      "stage_id": "cutting",
+      "name": "Раскрой материала",
+      "queue_limit": 5,
+      "buffer_capacity": 10,
+      "reject_probability": 0.01,
+      "next_stage_id": "assembly",
+      "machines": [
+        {
+          "machine_id": "cut-1",
+          "name": "Сложный станок резки",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.05,
+          "repair_time": 50.0
+        }
+      ]
+    },
+    {
+      "stage_id": "assembly",
+      "name": "Участок сборки",
+      "queue_limit": 5,
+      "buffer_capacity": 10,
+      "reject_probability": 0.01,
+      "next_stage_id": "quality",
+      "machines": [
+        {
+          "machine_id": "asm-1",
+          "name": "Роботизированная рука",
+          "processing_time": 3.0,
+          "breakdown_probability": 0.05,
+          "repair_time": 50.0
+        }
+      ]
+    },
+    {
+      "stage_id": "quality",
+      "name": "Контроль качества",
+      "queue_limit": 5,
+      "buffer_capacity": 10,
+      "reject_probability": 0.01,
+      "next_stage_id": null,
+      "machines": [
+        {
+          "machine_id": "qc-1",
+          "name": "Прецизионный стенд",
+          "processing_time": 2.0,
+          "breakdown_probability": 0.05,
+          "repair_time": 50.0
+        }
+      ]
+    }
+  ],
+  "batches": {
+    "mode": "equal_intervals",
+    "count": 20,
+    "size": 5,
+    "arrival_interval": 8.0,
+    "route": ["cutting", "assembly", "quality"]
+  }
+}

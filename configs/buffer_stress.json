@@ -1,14 +1,18 @@
 {
-  "scenario_name": "high_load",
-  "description": "Higher arrival rate to expose queue pressure and bottlenecks.",
-  "simulation_duration": 80,
-  "seed": 11,
+  "scenario_name": "buffer_stress",
+  "description": "Very small buffers to force rejections.",
+  "scenario_config": {
+    "name": "Buffer Stress",
+    "description": "Simulation with minimal buffer capacities to test rejection handling and flow pressure."
+  },
+  "simulation_duration": 100,
+  "seed": 42,
   "stages": [
     {
       "stage_id": "cutting",
-      "name": "Раскрой (выс. нагрузка)",
+      "name": "Раскрой материала",
       "queue_limit": 2,
-      "buffer_capacity": 3,
+      "buffer_capacity": 1,
       "reject_probability": 0.02,
       "next_stage_id": "assembly",
       "machines": [
@@ -23,16 +27,16 @@
     },
     {
       "stage_id": "assembly",
-      "name": "Сборка (выс. нагрузка)",
+      "name": "Участок сборки",
       "queue_limit": 2,
-      "buffer_capacity": 3,
+      "buffer_capacity": 1,
       "reject_probability": 0.03,
       "next_stage_id": "quality",
       "machines": [
         {
           "machine_id": "asm-1",
           "name": "Сборочный робот №1",
-          "processing_time": 3.5,
+          "processing_time": 3.0,
           "breakdown_probability": 0.04,
           "repair_time": 2.5
         }
@@ -40,9 +44,9 @@
     },
     {
       "stage_id": "quality",
-      "name": "Контроль (выс. нагрузка)",
-      "queue_limit": 3,
-      "buffer_capacity": 2,
+      "name": "Контроль качества",
+      "queue_limit": 2,
+      "buffer_capacity": 1,
       "reject_probability": 0.01,
       "next_stage_id": null,
       "machines": [
@@ -58,9 +62,9 @@
   ],
   "batches": {
     "mode": "equal_intervals",
-    "count": 24,
+    "count": 20,
     "size": 10,
-    "arrival_interval": 1.2,
+    "arrival_interval": 2.0,
     "route": ["cutting", "assembly", "quality"]
   }
 }
