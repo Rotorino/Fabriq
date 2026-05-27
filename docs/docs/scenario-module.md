@@ -519,8 +519,8 @@ Builder:
 ## Типовые ограничения и ошибки конфигурации
 
 - При нескольких входных этапах `batches.route` обязателен, иначе будет ошибка `batches.route is required when the production line has multiple entry stages`.
-- `next_stage_id` может ссылаться только на существующий этап, иначе будет ошибка `Unknown next_stage_id: `<id>``.
-- Циклы и недостижимые этапы запрещены, например `Cycle detected in production line at stage `<id>`` или `Production line contains unreachable or disconnected stages: ...`.
+- `next_stage_id` может ссылаться только на существующий этап, иначе будет ошибка `Unknown next_stage_id: <id>`.
+- Циклы и недостижимые этапы запрещены, например `Cycle detected in production line at stage <id>` или `Production line contains unreachable or disconnected stages: ...`.
 - `seed` и `batches.seed` должны быть `int` или `null`, иначе валидатор выбрасывает `seed must be an integer or null` или `batches.seed must be an integer or null`.
 - `queue_limit` и `buffer_capacity` должны быть целыми неотрицательными значениями или `null`.
 - `breakdown_probability` и `reject_probability` должны лежать в диапазоне `[0.0, 1.0]`.
