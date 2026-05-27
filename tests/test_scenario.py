@@ -272,7 +272,7 @@ batches:
         line = build_production_line(config)
         cutting = line.get_stage("cutting")
 
-        self.assertEqual(cutting.name, "Cutting")
+        self.assertEqual(cutting.name, "Раскрой материала")
         self.assertEqual(cutting.next_stage_id, "assembly")
         self.assertEqual(len(cutting.machines), 1)
         self.assertEqual(cutting.machines[0].stage_id, "cutting")

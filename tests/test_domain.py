@@ -18,6 +18,7 @@ class DomainEntityTestCase(unittest.TestCase):
             machines=[
                 Machine(
                     machine_id="cut-1",
+                    name="Machine 1",
                     stage_id="cutting",
                     processing_time=2.0,
                 )
@@ -51,6 +52,7 @@ class DomainEntityTestCase(unittest.TestCase):
     def test_machine_runtime_methods_follow_contract(self) -> None:
         machine = Machine(
             machine_id="m1",
+            name="Machine 1",
             stage_id="cutting",
             processing_time=3.0,
             repair_time=2.0,
@@ -78,6 +80,7 @@ class DomainEntityTestCase(unittest.TestCase):
             machines=[
                 Machine(
                     machine_id="cut-1",
+                    name="Machine 1",
                     stage_id="cutting",
                     processing_time=2.0,
                 )
@@ -91,6 +94,7 @@ class DomainEntityTestCase(unittest.TestCase):
             machines=[
                 Machine(
                     machine_id="asm-1",
+                    name="Assembly Machine",
                     stage_id="assembly",
                     processing_time=3.0,
                 )
@@ -119,6 +123,7 @@ class DomainEntityTestCase(unittest.TestCase):
             machines=[
                 Machine(
                     machine_id="asm-1",
+                    name="Assembly Machine",
                     stage_id="assembly",
                     processing_time=3.0,
                 )
@@ -131,6 +136,7 @@ class DomainEntityTestCase(unittest.TestCase):
             machines=[
                 Machine(
                     machine_id="cut-1",
+                    name="Machine 1",
                     stage_id="cutting",
                     processing_time=2.0,
                 )

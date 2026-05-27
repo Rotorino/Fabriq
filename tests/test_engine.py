@@ -25,6 +25,7 @@ class FakeMachine:
     machine_id: str
     stage_id: str
     processing_time: float
+    name: str = "Fake Machine"
     breakdown_probability: float = 0.0
     repair_time: float = 0.0
     status: str = "idle"
