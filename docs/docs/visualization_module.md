@@ -1,99 +1,102 @@
-# Visualization Module Documentation
+# Документация модуля визуализации
 
-## Overview
+## Обзор
 
-The visualization module generates SVG charts from simulation results and analytics data. It creates lightweight, dependency-free visualizations that can be embedded in reports or viewed in browsers.
+Модуль визуализации генерирует SVG-графики на основе результатов симуляции и аналитических данных. Он создаёт лёгкие визуализации без внешних зависимостей, которые можно встраивать в отчёты или просматривать в браузере.
 
-## Module Structure
+## Структура модуля
 
-```
+```text
 visualization/
 ├── __init__.py
-├── charts.py          # Main chart generation functions
-└── timeline.py        # Optional event timeline visualization
+├── charts.py          # Основные функции генерации графиков
+└── timeline.py        # Дополнительная визуализация временной шкалы событий
 ```
 
-## Chart Types
+## Типы графиков
 
-### 1. Queue Length Over Time
+### 1. Длина очереди во времени
 
-**Function:** `_queue_chart(raw_data, path)`
+**Функция:** `_queue_chart(raw_data, path)`
 
-Shows how queue lengths change during simulation.
+Показывает, как изменяется длина очередей в ходе симуляции.
 
-**Data source:** `raw_data["queue_lengths"]`
+**Источник данных:** `raw_data["queue_lengths"]`
 
-**Use case:** Identify periods of congestion and queue buildup
+**Применение:** Выявление периодов перегрузки и накопления очередей.
 
-### 2. Machine Utilization
+### 2. Загрузка станков
 
-**Function:** `_machine_utilization_chart(machines, path)`
+**Функция:** `_machine_utilization_chart(machines, path)`
 
-Bar chart showing utilization ratio for each machine.
+Столбчатая диаграмма, отображающая коэффициент загрузки каждого станка.
 
-**Data source:** `analytics["machines"]`
+**Источник данных:** `analytics["machines"]`
 
-**Use case:** Identify underutilized or overloaded machines
+**Применение:** Выявление недозагруженных или перегруженных станков.
 
-### 3. Batch Cycle Time
+### 3. Время производственного цикла партии
 
-**Function:** `_batch_cycle_time_chart(batches, path)`
+**Функция:** `_batch_cycle_time_chart(batches, path)`
 
-Bar chart showing total cycle time for each batch.
+Столбчатая диаграмма, показывающая общее время производственного цикла для каждой партии.
 
-**Data source:** `analytics["batches"]`
+**Источник данных:** `analytics["batches"]`
 
-**Use case:** Identify batches with abnormally long processing times
+**Применение:** Поиск партий с аномально длительным временем обработки.
 
-### 4. Breakdown Distribution
+### 4. Распределение поломок
 
-**Function:** `_breakdown_distribution_chart(stages, path)`
+**Функция:** `_breakdown_distribution_chart(stages, path)`
 
-Bar chart showing number of breakdowns per stage.
+Столбчатая диаграмма, показывающая количество поломок на каждом этапе производства.
 
-**Data source:** `analytics["stages"]`
+**Источник данных:** `analytics["stages"]`
 
-**Use case:** Identify stages with reliability issues
+**Применение:** Выявление этапов с проблемами надёжности.
 
-### 5. Stage Comparison
+### 5. Сравнение этапов
 
-**Function:** `_stage_comparison_chart(stages, path)`
+**Функция:** `_stage_comparison_chart(stages, path)`
 
-Multi-metric comparison showing wait time vs processing time per stage.
+Сравнительный график нескольких метрик, отображающий время ожидания и время обработки для каждого этапа.
 
-**Data source:** `analytics["stages"]`
+**Источник данных:** `analytics["stages"]`
 
-**Use case:** Compare stage performance and identify bottlenecks
+**Применение:** Сравнение эффективности этапов и поиск узких мест.
 
-### 6. Throughput Over Time
+### 6. Производительность во времени
 
-**Function:** `_throughput_over_time_chart(event_log, path)`
+**Функция:** `_throughput_over_time_chart(event_log, path)`
 
-Line chart showing cumulative completed batches over time.
+Линейный график, отображающий накопительное количество завершённых партий во времени.
 
-**Data source:** `result.event_log`
+**Источник данных:** `result.event_log`
 
-**Use case:** Visualize production rate and identify slowdowns
+**Применение:** Визуализация темпа производства и выявление замедлений.
 
-## Main Function
+## Основная функция
 
 ### `build_charts(result, analytics, output_dir) -> list[Path]`
 
-Generates all required charts and returns their file paths.
+Генерирует все необходимые графики и возвращает пути к созданным файлам.
 
-**Parameters:**
-- `result`: SimulationResult object from engine
-- `analytics`: Analytics dictionary from analytics module
-- `output_dir`: Directory where charts will be saved
+**Параметры:**
 
-**Returns:** List of Path objects pointing to generated SVG files
+- `result` — объект `SimulationResult`, полученный от движка симуляции.
+- `analytics` — словарь аналитических данных из модуля аналитики.
+- `output_dir` — директория для сохранения графиков.
 
-**Example:**
+**Возвращает:** Список объектов `Path`, указывающих на созданные SVG-файлы.
+
+**Пример:**
+
 ```python
 from visualization import build_charts
 
 chart_paths = build_charts(result, analytics, "results/charts")
-# Returns: [
+# Возвращает:
+# [
 #   Path("results/charts/queue_length.svg"),
 #   Path("results/charts/machine_utilization.svg"),
 #   Path("results/charts/batch_cycle_time.svg"),
@@ -103,118 +106,138 @@ chart_paths = build_charts(result, analytics, "results/charts")
 # ]
 ```
 
-## SVG Generation
+## Генерация SVG
 
-### Line Charts
+### Линейные графики
 
-Generated using `_line_svg(title, points)` helper function.
+Создаются с помощью вспомогательной функции `_line_svg(title, points)`.
 
-**Features:**
-- Auto-scaling to fit data range
-- Axes with labels
-- 720x360px default size
-- Blue stroke color (#2f80ed)
+**Возможности:**
 
-**Input format:** `[(x1, y1), (x2, y2), ...]`
+- Автоматическое масштабирование под диапазон данных.
+- Оси с подписями.
+- Размер по умолчанию: 720×360 пикселей.
+- Синий цвет линии (`#2f80ed`).
 
-### Bar Charts
-
-Generated using `_bar_svg(title, values)` helper function.
-
-**Features:**
-- Auto-scaling to maximum value
-- Labeled bars
-- 720x360px default size
-- Green fill color (#27ae60)
-
-**Input format:** `[("label1", value1), ("label2", value2), ...]`
-
-## Design Decisions
-
-### Why SVG?
-
-- **No dependencies**: Pure Python string generation
-- **Scalable**: Vector format scales to any size
-- **Embeddable**: Can be included in HTML reports
-- **Lightweight**: Small file sizes
-- **Browser-friendly**: Opens in any modern browser
-
-### Why Not matplotlib/plotly?
-
-- Adds heavy dependencies (numpy, matplotlib, etc.)
-- Increases installation complexity
-- Overkill for simple production charts
-- SVG generation is fast and sufficient
-
-## Customization
-
-### Changing Colors
-
-Edit color codes in chart generation functions:
+**Формат входных данных:**
 
 ```python
-# In _bar_svg
-fill='#27ae60'  # Green bars
-
-# In _line_svg
-stroke='#2f80ed'  # Blue line
-
-# In _stage_comparison_chart
-fill='#e74c3c'  # Red for wait time
-fill='#3498db'  # Blue for processing time
+[(x1, y1), (x2, y2), ...]
 ```
 
-### Changing Dimensions
+### Столбчатые диаграммы
 
-Modify width/height variables:
+Создаются с помощью вспомогательной функции `_bar_svg(title, values)`.
+
+**Возможности:**
+
+- Автоматическое масштабирование по максимальному значению.
+- Подписанные столбцы.
+- Размер по умолчанию: 720×360 пикселей.
+- Зелёный цвет столбцов (`#27ae60`).
+
+**Формат входных данных:**
+
+```python
+[("метка1", значение1), ("метка2", значение2), ...]
+```
+
+## Архитектурные решения
+
+### Почему SVG?
+
+- **Без зависимостей** — используется только генерация строк средствами Python.
+- **Масштабируемость** — векторный формат подходит для любого размера.
+- **Встраиваемость** — можно включать в HTML-отчёты.
+- **Лёгкость** — небольшой размер файлов.
+- **Поддержка браузерами** — открывается в любом современном браузере.
+
+### Почему не matplotlib или plotly?
+
+- Добавляют тяжёлые зависимости (`numpy`, `matplotlib` и др.).
+- Усложняют установку проекта.
+- Избыточны для простых производственных графиков.
+- Генерация SVG быстрее и полностью покрывает требования проекта.
+
+## Настройка
+
+### Изменение цветов
+
+Измените цветовые коды в функциях генерации графиков:
+
+```python
+# В _bar_svg
+fill='#27ae60'  # Зелёные столбцы
+
+# В _line_svg
+stroke='#2f80ed'  # Синяя линия
+
+# В _stage_comparison_chart
+fill='#e74c3c'  # Красный цвет для времени ожидания
+fill='#3498db'  # Синий цвет для времени обработки
+```
+
+### Изменение размеров
+
+Измените значения ширины и высоты:
 
 ```python
 width = 720
 height = 360
 ```
 
-### Adding New Chart Types
+### Добавление нового типа графика
 
-1. Create a new function following the pattern:
+1. Создайте новую функцию по следующему шаблону:
+
 ```python
 def _my_new_chart(data: list[dict], path: Path) -> Path:
-    # Process data
+    # Обработка данных
     values = [(item["label"], item["value"]) for item in data]
-    
-    # Generate SVG
-    svg = _bar_svg("My Chart Title", values)
-    
-    # Write to file
+
+    # Генерация SVG
+    svg = _bar_svg("Название графика", values)
+
+    # Сохранение файла
     path.write_text(svg, encoding="utf-8")
     return path
 ```
 
-2. Add to `build_charts()`:
+2. Добавьте её вызов в `build_charts()`:
+
 ```python
 paths = [
-    # ... existing charts ...
-    _my_new_chart(analytics["my_data"], chart_dir / "my_chart.svg"),
+    # ... существующие графики ...
+    _my_new_chart(
+        analytics["my_data"],
+        chart_dir / "my_chart.svg",
+    ),
 ]
 ```
 
-## Performance
+## Производительность
 
-- Chart generation is fast (`< 10ms` per chart)
-- Memory usage is minimal (string concatenation)
-- No external process spawning
-- Suitable for batch generation of hundreds of charts
+- Генерация графика занимает менее **10 мс**.
+- Минимальное потребление памяти (используется конкатенация строк).
+- Не создаются внешние процессы.
+- Подходит для пакетной генерации сотен графиков.
 
-## Integration
+## Интеграция
 
-### With Reporting Module
+### С модулем отчётности
 
-Charts are automatically included in reports:
+Графики автоматически включаются в отчёты:
 
 ```python
 from reporting import build_report
 from visualization import build_charts
 
-chart_paths = build_charts(result, analytics, output_dir / "charts")
+chart_paths = build_charts(
+    result,
+    analytics,
+    output_dir / "charts",
+)
+
 report = build_report(
     result=result,
     analytics=analytics,
@@ -222,35 +245,43 @@ report = build_report(
     output_dir=output_dir,
     chart_paths=chart_paths,
 )
-# Report JSON includes chart paths
+
+# JSON-отчёт будет содержать пути к графикам
 ```
 
-### Standalone Usage
+### Самостоятельное использование
 
-Charts can be generated independently:
+Графики можно генерировать независимо от отчётности:
 
 ```python
 from visualization import build_charts
 
-# Generate only charts
-chart_paths = build_charts(result, analytics, "output/charts")
+# Генерация только графиков
+chart_paths = build_charts(
+    result,
+    analytics,
+    "output/charts",
+)
 
-# Open in browser
+# Открыть первый график в браузере
 import webbrowser
+
 webbrowser.open(str(chart_paths[0]))
 ```
 
-## Testing
+## Тестирование
 
-See `tests/test_reporting.py`:
-- `test_charts_generation_creates_all_required_files`: Validates all 6 charts are created
+См. файл `tests/test_reporting.py`:
 
-## Future Enhancements
+- `test_charts_generation_creates_all_required_files` — проверяет создание всех шести обязательных графиков.
 
-Potential improvements:
-- Interactive SVG with JavaScript
-- Export to PNG/PDF formats
-- Animated charts showing simulation progress
-- Customizable color schemes
-- Responsive sizing
-- Dark mode support
+## Планы по развитию
+
+Возможные улучшения:
+
+- Интерактивные SVG с использованием JavaScript.
+- Экспорт в форматы PNG и PDF.
+- Анимированные графики, отображающие ход симуляции.
+- Настраиваемые цветовые схемы.
+- Адаптивное изменение размеров.
+- Поддержка тёмной темы оформления.
