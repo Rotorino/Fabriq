@@ -1,49 +1,51 @@
-# Developer Guide: Fabriq Architecture & Core Logic
+# Руководство разработчика: Архитектура и основная логика Fabriq
 
-This guide provides a deep technical walkthrough of the Fabriq simulation engine.
+Это руководство предоставляет подробное техническое описание симуляционного движка Fabriq.
 
-## 1. Modular Architecture
+## 1. Модульная архитектура
 
-Fabriq uses a decoupled, event-driven design:
+Fabriq использует слабосвязанную событийно-ориентированную архитектуру:
 
-- **`domain/`**: Pure data entities (`Batch`, `Machine`, `Stage`).
-- **`engine/`**: The reactive core. Implements the Event Loop.
-- **`scenario/`**: Factory layer that parses JSON into Domain objects.
-- **`analytics/`**: Aggregates the `EventLog` into performance metrics.
-
----
-
-## 2. Core Engine: The Event Loop
-
-The simulation follows the **Discrete Event Simulation (DES)** pattern (`engine/simulator.py`).
-
-### Execution Flow:
-1. **Bootstrap**: Clones input entities to prevent mutation.
-2. **Initial Scheduling**: Places `BATCH_ARRIVAL` events into the priority queue.
-3. **Processing**:
-   - Pops the event with the lowest timestamp.
-   - Dispatches it to the corresponding handler in `engine/handlers.py`.
-4. **Safety**: A cap on events per timestamp prevents infinite zero-time loops.
+- **`domain/`**: Чистые сущности данных (`Batch`, `Machine`, `Stage`).
+- **`engine/`**: Реактивное ядро системы. Реализует цикл обработки событий (Event Loop).
+- **`scenario/`**: Фабричный слой, который преобразует JSON-конфигурации в объекты доменной модели.
+- **`analytics/`**: Агрегирует данные из `EventLog` в метрики производительности.
 
 ---
 
-## 3. UI/UX Implementation Details
+## 2. Основной движок: Цикл обработки событий
 
-The Streamlit UI (`app/ui.py`) has been upgraded with:
-- **Dynamic Visualization**: Uses `st.graphviz_chart` to render the `ProductionLine` structure. It maps stages and their machines into a directed graph.
-- **Session History**: Uses `st.session_state["simulation_history"]` to store results as dictionaries, allowing for real-time comparison without re-running simulations.
-- **Reactive Editor**: The JSON editor syncs with the visualization, allowing users to see structural changes immediately.
+Симуляция построена на шаблоне **дискретно-событийного моделирования (DES)** (`engine/simulator.py`).
 
----
+### Порядок выполнения
 
-## 4. Analytical Metrics
-
-- **`MachineMetrics`**: Tracks `utilization`, `breakdowns`, and `downtime_time`.
-- **`StageMetrics`**: Provides time-weighted averages for queue lengths.
-- **`BatchMetrics`**: Calculates total cycle time and total waiting time.
+1. **Инициализация (Bootstrap)**: Создаёт копии входных сущностей для предотвращения изменения исходных данных.
+2. **Первичное планирование**: Помещает события `BATCH_ARRIVAL` в очередь с приоритетами.
+3. **Обработка**:
+   - Извлекает событие с наименьшей временной меткой.
+   - Передаёт его соответствующему обработчику в `engine/handlers.py`.
+4. **Безопасность**: Ограничение количества событий на одну временную метку предотвращает бесконечные циклы с нулевым временем выполнения.
 
 ---
 
-## 5. Renaming & Human-Readability
+## 3. Детали реализации UI/UX
 
-The system now prioritizes the `name` field of entities over their `id` for display purposes. Developers should ensure that while `machine_id` remains unique for logic, the `name` field is populated with a user-friendly Russian string for the UI.
+Интерфейс Streamlit (`app/ui.py`) был улучшен следующими возможностями:
+
+- **Динамическая визуализация**: Использует `st.graphviz_chart` для отображения структуры `ProductionLine`. Этапы производства и их станки отображаются в виде ориентированного графа.
+- **История сессии**: Использует `st.session_state["simulation_history"]` для хранения результатов в виде словарей, что позволяет сравнивать симуляции в реальном времени без повторного запуска.
+- **Реактивный редактор**: JSON-редактор синхронизирован с визуализацией, позволяя мгновенно видеть изменения структуры сценария.
+
+---
+
+## 4. Аналитические метрики
+
+- **`MachineMetrics`**: Отслеживает `utilization` (загрузку), `breakdowns` (количество поломок) и `downtime_time` (время простоя).
+- **`StageMetrics`**: Предоставляет средневзвешенные по времени значения длины очередей.
+- **`BatchMetrics`**: Вычисляет общее время производственного цикла и суммарное время ожидания.
+
+---
+
+## 5. Переименование и удобочитаемость
+
+Теперь система отдаёт приоритет полю `name` вместо `id` при отображении сущностей. Разработчики должны следить за тем, чтобы `machine_id` оставался уникальным для логики приложения, а поле `name` содержало понятное пользователю русскоязычное название для отображения в интерфейсе.
