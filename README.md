@@ -88,3 +88,7 @@ GitHub Actions запускает Python CI при push и pull request в ос�
 выполняет `pytest`, прогоняет каждый сценарий `configs/*.json` через CLI,
 проверяет повторяемость движка с фиксированным seed и загружает артефакты
 `logs/` и `results/`.
+
+## Сайт-Деплой.
+
+https://rotorino-fabriq-appui-dev-j4pqil.streamlit.app/
